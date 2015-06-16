@@ -27,6 +27,7 @@ class NewMultitrack(object):
         self.stem_info = {}
         self.raw_info = {}
         self.ranking = []
+        self.stem_fchange_dict = {}
 
         self._init_metadata()
 
@@ -181,17 +182,16 @@ class NewMultitrack(object):
 
     def addMixFile(self, fpath):
         copyfile(fpath, self.mix_path)
-        #os.system("cp %s %s" % (fpath, self.mix_path))
 
     def addStemFile(self, fpath, instrument, component):
         stem_idx = int(len(self.metadata_dict['stems'].keys()) + 1)
-        stem_str = "S%02d" % stem_idx
 
         new_fname = self.stem_fmt % ("%02d" % stem_idx)
         new_fpath = os.path.join(self.stem_path, new_fname)
 
         copyfile(fpath, new_fpath)
-        #os.system("cp %s %s" % (fpath, new_fpath))
+        self.stem_fchange_dict[os.path.basename(fpath)] = \
+            os.path.basename(new_fpath)
 
         temp_dict = dict.fromkeys(self.stem_keys)
         temp_dict['filename'] = self.stem_fmt % ("%02d" % stem_idx)
@@ -216,7 +216,6 @@ class NewMultitrack(object):
 
         # copy source file to source directory
         copyfile(fpath, new_fpath)
-        #os.system("cp %s %s" % (fpath, new_fpath))
 
         # add metadata to dictionary
         # Ensure that stem exists

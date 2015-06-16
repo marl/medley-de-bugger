@@ -876,7 +876,6 @@ def process_data(save_path, metadata, mix_path, stem_info, raw_info, ranking):
     NM.setHasBleed(metadata["has_bleed"])
     NM.setGenre(metadata["genre"])
     NM.setOrigin(metadata["origin"])
-    NM.setRanking(ranking)
 
     NM.fillMetadata()
     NM.makeFileStructure()
@@ -888,6 +887,8 @@ def process_data(save_path, metadata, mix_path, stem_info, raw_info, ranking):
         idx = NM.addStemFile(stem_info[stem]['path'], stem_info[stem]['inst'],
                              stem_info[stem]['component'])
         stem_name_map[stem] = idx
+
+    NM.setRanking([[NM.stem_fchange_dict[r[0]], r[1]] for r in ranking])
 
     for raw in raw_info:
         stem_idx = stem_name_map[raw_info[raw]['stem']]
