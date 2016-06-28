@@ -1,0 +1,10 @@
+setup.py
+UNKNOWN.egg-info/PKG-INFO
+UNKNOWN.egg-info/SOURCES.txt
+UNKNOWN.egg-info/dependency_links.txt
+UNKNOWN.egg-info/top_level.txt
+new_multitrack/__init__.py
+new_multitrack/multitrack_utils.py
+new_multitrack/new_multitrack.py
+new_multitrack/validation.py
+new_multitrack/wave_silence.py
