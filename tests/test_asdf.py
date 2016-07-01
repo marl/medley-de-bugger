@@ -1,12 +1,10 @@
 import unittest
-#import unittest2 as unittest?
 import os
 from new_multitrack import new_multitrack, validation, wave_silence
 
 #UNIT TESTS!!!!
 
 
-#gets file from path
 def relpath(f):
     return os.path.join(os.path.dirname(__file__), f)
     #return os.path.abspath(path)

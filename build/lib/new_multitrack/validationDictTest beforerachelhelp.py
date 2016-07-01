@@ -4,162 +4,150 @@
 import sys
 import os
 import glob
-import yaml
+import struct
+import wave
+import json
 from PyQt4 import QtGui, QtCore
 from functools import partial
 import multitrack_utils as mu
 #import wave_silence as W
 
 
-#Calls all the error checks
-def checkAudio(raw_path, stem_path, mix_path):
-    """
-    Error checks the input files for the following potential problems: 
-        -Stem/raw folders are empty
-        -Silent files
-        -Incorrectly formatted files
-        -Stems without corresponding raw files
-        -Stems/raw files not the same length as final mix
-        -Alignment issues
-        -Instruments labelled Incorrectly
-        -Raw tracks matched to correct stems
-        -Stem or raw exact duplicates
-        -Chunks of silence at beginning/end
-        -Speech extras
-        -Stems not making it into mix
+"""This generates the unique errors thrown by each test -> needs to call each check"""
 
-    Parameters
-    ----------
-    raw_path : str
-        Path to raw folder (contains raw wav files).
-    stem_path : str
-        Path to stem folder (contains stem wav files).
-    mix_path : str
-        Path to mix wavefile.
+def error_gen(raw_files, stem_files, mix_file, file_list, file_status):  # HELP
+    print "Checking audio files..."
 
-    Yields
-    -------
-    valid : bool
-        True if all checks pass (thus problems arr would be empty).
-    problems: arr 
-        Array of strings listing the errors thrown.
-    """
-
+    global valid
+    global error_message
     valid = True
     error_message = ''
 
+    # checks
+    valid, error_message = stats_check(raw_files, stem_files, file_list, file_status)
 
-    """MAKING NESTED STATUS DICTIONARY"""
-    # file_list is our outer dictionary
+    # actually writes error message
+    for item in file_list:
+        for status in file_status:
+            if status:
+                print 'Pass!'
+
+            else:
+                print 'Error: ' + error_message
+
+    return valid, error_message
+
+
+#Calls all the error checks
+def checkAudio(raw_path, stem_path, mix_path):
+    "MAKING NESTED STATUS DICTIONARY"""
+    # file_list is our outer dictionary, file_status is outer
     file_list = []
-
-    # file_status is inner dictionary
     file_status = {}
 
     # get list of files #
-    mix_file = [mix_path] # ?
+    mix_file = [mix_path]
     stem_files = glob.glob(os.path.join(stem_path, '*.wav'))
     raw_files = glob.glob(os.path.join(raw_path, '*.wav'))
 
-    file_list = mix_path + stem_files + raw_files
+    file_list = mix_file + stem_files + raw_files
+
+    mix_length = get_length(mix_path)
+
+    valid, error_message = error_gen(raw_files, stem_files, mix_file, file_list, file_status)
 
     # Populates nested dictionary containing all the information for the error checks #
 
     for item in file_list:
         file_status[item] = {
-            'Silent': None, #done
-            'Empty_Raw': None, #done
-            'Empty_Stems': None,  #done
-            'Wrong_Stats': None, #done
-            'Length_As_Mix': None, #odone
-            'Stems_Have_Raw': None, #? was this already written? is empty_folder same as if stems have corr. raw
-            'Alignment': None, # multiple checks in here...TBD
+            'Silent': None,  # done
+            'Empty_Raw': None,  # done
+            'Empty_Stems': None,  # done
+            'Wrong_Stats': None,  # done
+            'Length_As_Mix': None,  # done
+            'Stems_Have_Raw': None,  # ? was this already written? is empty_folder same as if stems have corr. raw
+            'Alignment': None,  # multiple checks in here...TBD
             'Instrument_Label': None,
             'Raws_Match_Stems': None,
             'Stem_Duplicates': None,
-            'Raw_Duplicates' : None,
+            'Raw_Duplicates': None,
             'Silent_Sections': None,
-            'Speech' : None,
+            'Speech': None,
             'Stem_Present_In_Mix': None
         }
 
-    print file_status
+        #also eventually only print items in file status whose inner keys are false
+        # pretty json print # (sort keys sorts alphabetically)
+    print json.dumps(file_status, sort_keys=False, indent=4)
 
-    mix_length = get_length(mix_path)
-    wrong_stats = [] #instead of this we want to
-    wrong_length = []
-    silent = []
 
     return valid, file_list
+# change check tests to make valid false if any one test fails (outside of loops)
+# check with this first
 
 
-
-"""This displays the unique error thrown by each test"""
-def printer(file_list): # Should this take file_list?
-    print "Checking audio files..."
-    for item in file_list:
-        for status in file_status:
-            if status == True:
-                print 'Pass!'
-            else:
-                print 'Error: ' + error_message
-
-
-def stats_check(raw_files, stem_files):
+def stats_check(raw_files, stem_files, file_list, file_status):
     for stem in stem_files:
         if not is_right_stats(stem, "stem"):
-            wrong_stats.append(stem)
+            file_list[file_status]['Wrong_Stats'] = False
+            error_message = 'Files with incorrect stats exist:'
+            # for wstat in wrong_stats:
+            #     error_message += wstat
+            # error_message += " "
+            valid = False
 
     for raw in raw_files:
         if not is_right_stats(raw, "raw"):
-            wrong_stats.append(raw)
+            file_list[file_status]['Wrong_Stats'] = False
+            error_message = 'Files with incorrect stats exist:'
+            # for wstat in wrong_stats:
+            #     error_message += wstat
+            # error_message += " "
+            valid = False
 
-    if len(wrong_stats) > 0:
-        file_list[file_status]['Wrong_Stats'] = False
-        error_message = 'Files with incorrect stats exist:'
-        for wstat in wrong_stats:
-            error_message += wstat
-        error_message += " "
-        valid = False
-
+    return valid, error_message
 
 
-def length_check(raw_files, stem_files, mix_length):
+def length_check(raw_files, stem_files, mix_length, file_list, file_status):
     for stem in stem_files:
         if not is_right_length(stem, mix_length):
-            wrong_length.append(stem)
+            file_list[file_status]['Length_As_Mix'] = False
+            error_message = 'Not all file lengths match the mix length:'
+            # for wlen in wrong_length:
+            #     error_message += wlen
+            # error_message += " "
+            valid = False
 
     for raw in raw_files:
         if not is_right_length(raw, mix_length):
-            wrong_length.append(raw)
+            file_list[file_status]['Length_As_Mix'] = False
+            error_message = 'Not all file lengths match the mix length:'
+            valid = False
 
-    if len(wrong_length) > 0:
-        file_list[file_status]['Length_As_Mix'] = False
-        error_message = 'Not all file lengths match the mix length:'
-        for wlen in wrong_length:
-            error_message += wlen
-        error_message += " "
-        valid = False
+    return valid, error_message
 
 
-def silence_check(raw_files, stem_files):
+def silence_check(raw_files, stem_files, file_list, file_status):
     for stem in stem_files:
         if is_silence(stem):
-            silent.append(stem)
+            file_list[file_status]['Silent'] = False
+            error_message = 'Silent files exist.'
+            # for slnt in silent:
+            #     error_message += slnt
+            valid = False
 
     for raw in raw_files:
         if is_silence(raw):
-            silent.append(raw)
+            file_list[file_status]['Silent'] = False
+            error_message = 'Silent files exist.'
+            # for slnt in silent:
+            #     error_message += slnt
+            valid = False
 
-    if len(silent) > 0:
-        file_list[file_status]['Silent'] = False
-        error_message = 'Silent files exist.'
-        for slnt in silent:
-            error_message += slnt
-        valid = False
+    return valid, error_message
 
 
-def empty_check(raw_path, stem_path): 
+def empty_check(raw_path, stem_path, file_list, file_status):
     """
     Checks to make sure the selected raw and stem paths are not empty.
 
@@ -175,9 +163,9 @@ def empty_check(raw_path, stem_path):
     valid : bool
         True if stem or raw folders contain wav files (i.e. not empty)
     """
-    #valid is set True as default in checkAudio
+    # valid is set True as default in checkAudio
 
-    if not has_wavs(stem_path): #if it doesnt have wavs (returns true)
+    if not has_wavs(stem_path):  # if it doesnt have wavs (returns true)
         file_list[file_status]['Empty_Stems'] = False
         error_message = 'Path contains no stem wav files.'
         valid = False
@@ -187,12 +175,15 @@ def empty_check(raw_path, stem_path):
         error_message = 'Path contains no raw wav files.'
         valid = False
 
+    return valid, error_message
+
 
 #TAKEN FROM WAVE_SILENCE (use most of these as helper functions)
 """Routines to test the 'emptiness' of a wave file. Mostly helper functions"""
 
+
 def has_wavs(folder_path):
-    wav_files = glob.glob(os.path.join(folder_path,'*.wav'))
+    wav_files = glob.glob(os.path.join(folder_path, '*.wav'))
     if len(wav_files) == 0:
         return False
     else:
@@ -217,6 +208,7 @@ def is_right_stats(fpath, type):
     else:
         print "Incorrect Type."
         return False
+
 
 def get_length(fpath):
     fp = wave.open(fpath, 'rb')
@@ -320,17 +312,3 @@ def is_silence(wavefile, threshold=16, framesize=None):
         if max([abs(min(frame)), max(frame)]) >= threshold:
             return False
     return True
-
-
-
-
-
-
-
-
-
-
-    
-
-
-

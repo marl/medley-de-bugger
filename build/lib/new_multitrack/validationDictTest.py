@@ -14,18 +14,11 @@ import multitrack_utils as mu
 
 
 def fill_file_status(file_status, status_dict, secondary_key):
-
-    #print(status_dict)
-    #print('file status keys!!!!!!' + file_status.keys())
-    #print(status_dict.keys())
-    print(json.dumps(status_dict, sort_keys=False, indent=4))
+    print(file_status.keys())
     print(status_dict.keys())
-    #print(json.dumps(file_status, sort_keys=False, indent=4))
 
-#changed file_lists from file_status
     for key in status_dict:
-        # file_status[key][secondary_key] = status_dict[key]
-        status_dict[key] = file_status[key][secondary_key]
+        file_status[key][secondary_key] = status_dict[key]
     return file_status
 
 #Calls all the error checks
@@ -62,22 +55,22 @@ def checkAudio(raw_path, stem_path, mix_path):
             'Stem_Present_In_Mix': None
         }
 
-        # make these nameofcheck_status -> changed these to be file list in fill file status args
+        # make these nameofcheck_status
         stats_status = stats_check(raw_files, stem_files)
         file_status = fill_file_status(file_status, stats_status, 'Wrong_Stats')
 
         length_status = length_check(raw_files, stem_files, mix_length)
-        file_status = fill_file_status(file_status, length_status, 'Length_As_Mix')
+        file_status = fill_file_status(file_status, stats_status, 'Length_As_Mix')
 
         silence_status = silence_check(raw_files, stem_files)
-        file_status = fill_file_status(file_status, silence_status, 'Silent')
+        file_status = fill_file_status(file_status, stats_status, 'Silent')
 
         empty_status = empty_check(raw_path, stem_path)
-        file_status = fill_file_status(file_status, empty_status, 'Empty')
+        file_status = fill_file_status(file_status, stats_status, 'Empty')
 
         #also eventually only print items in file status whose inner keys are false
         # pretty json print # (sort keys sorts alphabetically)
-    #print(json.dumps(file_status, sort_keys=False, indent=4))
+    print(json.dumps(file_status, sort_keys=False, indent=4))
 
     return file_status
 

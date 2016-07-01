@@ -1,0 +1,10 @@
+setup.py
+new_multitrack/__init__.py
+new_multitrack/multitrack_utils.py
+new_multitrack/new_multitrack.py
+new_multitrack/validation.py
+new_multitrack.egg-info/PKG-INFO
+new_multitrack.egg-info/SOURCES.txt
+new_multitrack.egg-info/dependency_links.txt
+new_multitrack.egg-info/requires.txt
+new_multitrack.egg-info/top_level.txt

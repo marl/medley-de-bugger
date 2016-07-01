@@ -6,5 +6,7 @@ UNKNOWN.egg-info/top_level.txt
 new_multitrack/__init__.py
 new_multitrack/multitrack_utils.py
 new_multitrack/new_multitrack.py
-new_multitrack/validation.py
+new_multitrack/validationDictTest beforerachelhelp.py
+new_multitrack/validationDictTest copy.py
+new_multitrack/validationDictTest.py
 new_multitrack/wave_silence.py

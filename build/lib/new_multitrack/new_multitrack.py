@@ -8,7 +8,6 @@ import yaml
 from PyQt4 import QtGui, QtCore
 from functools import partial
 import multitrack_utils as mu
-import wave_silence as W
 import validation
 from validation import checkAudio #added this to go with our new file
 
@@ -116,92 +115,29 @@ class FilePrompt(QtGui.QDialog):
     def checkNext(self):
         if self.raw_path and self.stem_path and \
            self.mix_path and self.save_path:
-            valid, problems = checkAudio(self.stem_path, self.raw_path, self.mix_path)
-
-            if not valid:
-                invalid_dialog = InvalidFiles(problems)
-                if not invalid_dialog.exec_():
-                    sys.exit(-1)
-
-            self.accept()
+           # should this be file_status?
+            file_status = checkAudio(self.raw_path, self.stem_path, self.mix_path)
 
 
+            for thing in file_list:
+                for foo in file_status:
+                    for bar in status_dict: #for each inner key that's false
+                        if not bar:
+                            invalid_dialog = InvalidFiles(file_status)
+                            if not invalid_dialog.exec_():
+                                sys.exit(-1)
+                        self.accept()
+
+            # if not valid:
+            #     invalid_dialog = InvalidFiles(file_status)
+            #     if not invalid_dialog.exec_():
+            #         sys.exit(-1)
+
+            # self.accept()
 
     def nextEnabled(self):
         if self.raw_path and self.stem_path and self.mix_path:
             self.next_btn.setEnabled(True)
-
-
-    # def checkAudio(self):
-    #     valid = True
-    #     problems = []
-
-    #     #W is wave silence file checker
-    #     # making sure the folders aren't empty
-    #     # Check that stem & raw directories have wav files #
-    #     if not W.has_wavs(self.stem_path):
-    #         problems.append("Stem folder has no wav files.")
-    #         valid = False
-    #     if not W.has_wavs(self.raw_path):
-    #         problems.append("Raw folder has no wav files.")
-    #         valid = False
-
-    #     if not valid:
-    #         invalid_dialog = InvalidFiles(problems)
-    #         if not invalid_dialog.exec_():
-    #             sys.exit(-1)
-
-    #     # get list of files #
-    #     mix_length = W.get_length(self.mix_path)
-    #     stem_files = glob.glob(os.path.join(self.stem_path, '*.wav'))
-    #     raw_files = glob.glob(os.path.join(self.raw_path, '*.wav'))
-    #     wrong_stats = []
-    #     wrong_length = []
-    #     silent = []
-
-    #     #makes sure that the stem and raw files has the correct stats  after getting a list of them
-    #     print "Checking audio files..."
-    #     for stem in stem_files:
-    #         if not W.is_right_stats(stem, "stem"):
-    #             wrong_stats.append(stem)
-    #         if not W.is_right_length(stem, mix_length):
-    #             wrong_length.append(stem)
-    #         if W.is_silence(stem):
-    #             silent.append(stem)
-    #     for raw in raw_files:
-    #         if not W.is_right_stats(raw, "raw"):
-    #             wrong_stats.append(raw)
-    #         if not W.is_right_length(raw, mix_length):
-    #             wrong_length.append(raw)
-    #         if W.is_silence(raw):
-    #             silent.append(raw)
-
-
-    #     #BASIC ERROR CHECKING THAT WE HAVE NOW
-    #     if len(wrong_stats) > 0:
-    #         problems.append("Files with incorrect stats exist:")
-    #         for wstat in wrong_stats:
-    #             problems.append(wstat)
-    #         problems.append(" ")
-    #         valid = False
-    #     if len(wrong_length) > 0:
-    #         problems.append("Not all file lengths match the mix length:")
-    #         for wlen in wrong_length:
-    #             problems.append(wlen)
-    #         problems.append(" ")
-    #         valid = False
-    #     if len(silent) > 0:
-    #         problems.append("Silent files exist.")
-    #         for slnt in silent:
-    #             problems.append(slnt)
-    #         valid = False
-
-    #     if not valid:
-    #         invalid_dialog = InvalidFiles(problems)
-    #         if not invalid_dialog.exec_():
-    #             sys.exit(-1)
-
-
 
 
 class InvalidFiles(QtGui.QDialog):
