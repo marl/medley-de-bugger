@@ -9,7 +9,8 @@ from PyQt4 import QtGui, QtCore
 from functools import partial
 import multitrack_utils as mu
 import validation
-from validation import checkAudio #added this to go with our new file
+from validation import check_audio #added this to go with our new file
+from validation import create_problems
 
 
 INST_TAXONOMY = 'taxonomy.yaml'
@@ -115,25 +116,17 @@ class FilePrompt(QtGui.QDialog):
     def checkNext(self):
         if self.raw_path and self.stem_path and \
            self.mix_path and self.save_path:
-           # should this be file_status?
-            file_status = checkAudio(self.raw_path, self.stem_path, self.mix_path)
+           
+            file_status = check_audio(self.raw_path, self.stem_path, self.mix_path)
+            problems = create_problems(file_status)
 
+            if len(problems) > 0:
+                invalid_dialog = InvalidFiles(problems) #also change invalid files/dialog
+                if not invalid_dialog.exec_():
+                    sys.exit(-1)
+            else:
+                self.accept()
 
-            for thing in file_list:
-                for foo in file_status:
-                    for bar in status_dict: #for each inner key that's false
-                        if not bar:
-                            invalid_dialog = InvalidFiles(file_status)
-                            if not invalid_dialog.exec_():
-                                sys.exit(-1)
-                        self.accept()
-
-            # if not valid:
-            #     invalid_dialog = InvalidFiles(file_status)
-            #     if not invalid_dialog.exec_():
-            #         sys.exit(-1)
-
-            # self.accept()
 
     def nextEnabled(self):
         if self.raw_path and self.stem_path and self.mix_path:

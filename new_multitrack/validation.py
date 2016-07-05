@@ -11,7 +11,23 @@ from PyQt4 import QtGui, QtCore
 from functools import partial
 import multitrack_utils as mu
 from os.path import basename
-#import wave_silence as W
+#
+
+PROBLEMS = {
+    'Silent': 'File is silent.',
+    'Empty': 'Folder is empty.', 
+    'Wrong_Stats': 'File format is incorrect.',  
+    'Length_As_Mix': 'File is not the same length as the associated mix.', 
+    'Stems_Have_Raw': 'Stems are missing corresponding raw files.',  
+    'Alignment': 'Files are not aligned.',  
+    'Instrument_Label': 'Instruments are incorrectly labelled.',
+    'Raws_Match_Stems': 'Raw files do not correspond to correct stems.',
+    'Stem_Duplicates': 'Duplicate stem files exist.',
+    'Raw_Duplicates': 'Duplicate raw files exist.',
+    'Silent_Sections': 'File contains silent sections.',
+    'Speech': 'File contains speech segments.',
+    'Stem_Present_In_Mix': 'Stems do not add up to the mix correctly.'
+}
 
 
 def fill_file_status(file_status, status_dict, secondary_key):
@@ -25,7 +41,7 @@ def fill_file_status(file_status, status_dict, secondary_key):
 
 
 #Calls all the error checks
-def checkAudio(raw_path, stem_path, mix_path):
+def check_audio(raw_path, stem_path, mix_path):
     "MAKING NESTED STATUS DICTIONARY"""
     # file_list is our outer dictionary, file_status is outer
     file_list = []
@@ -40,9 +56,9 @@ def checkAudio(raw_path, stem_path, mix_path):
     new_stems = [os.path.basename(path) for path in stem_files]
     new_raws = [os.path.basename(path) for path in raw_files]
 
-    print mix_file
-    print new_stems
-    print new_raws
+    #print mix_file
+    #print new_stems
+    #print new_raws
 
     file_list = mix_file + new_stems + new_raws + [os.path.basename(raw_path)] + [os.path.basename(stem_path)]
 
@@ -66,27 +82,32 @@ def checkAudio(raw_path, stem_path, mix_path):
             'Stem_Present_In_Mix': None
         }
 
-    print(file_status.keys())
-    print(file_status['Phoenix_ScotchMorris_STEM_01.wav'])
-
-    # make these nameofcheck_status -> changed these to be file list in fill file status args
     stats_status = stats_check(raw_files, stem_files)
     file_status = fill_file_status(file_status, stats_status, 'Wrong_Stats')
 
     length_status = length_check(raw_files, stem_files, mix_length)
     file_status = fill_file_status(file_status, length_status, 'Length_As_Mix')
 
-    silence_status = silence_check(raw_files, stem_files)
+    silence_status = silence_check(raw_files, stem_files, mix_path)
     file_status = fill_file_status(file_status, silence_status, 'Silent')
 
     empty_status = empty_check(raw_path, stem_path)
     file_status = fill_file_status(file_status, empty_status, 'Empty')
 
-        #also eventually only print items in file status whose inner keys are false
-        # pretty json print # (sort keys sorts alphabetically)
-    #print(json.dumps(file_status, sort_keys=False, indent=4))
+    #print(json.dumps(file_status, sort_keys=False, indent=4)) for pretty print checks
 
     return file_status
+
+def create_problems(file_status):
+    problems = [] 
+
+    for f_name in file_status:
+        if False in file_status[f_name].values():
+            for key in file_status[f_name]:
+                if file_status[f_name][key] is False:
+                    problems.append("{} : {}".format(f_name, PROBLEMS[key]))
+    return problems
+
 
  # also add mix_path as arg to these tests and fix the helpers to check the mix statistics
 
@@ -128,7 +149,7 @@ def length_check(raw_files, stem_files, mix_length):
     return length_dict
 
 
-def silence_check(raw_files, stem_files):
+def silence_check(raw_files, stem_files, mix_path):
 
     silence_dict = {}
 
@@ -144,9 +165,15 @@ def silence_check(raw_files, stem_files):
         else:
             silence_dict[os.path.basename(raw)] = True
 
+    if is_silence(mix_path):
+        silence_dict[os.path.basename(mix_path)] = False
+    else:
+        silence_dict[os.path.basename(mix_path)] = True
+
     return silence_dict
 
 def empty_check(raw_path, stem_path):
+
     empty_dict = {}
 
     if not has_wavs(stem_path):  # if it doesnt have wavs (returns true)
