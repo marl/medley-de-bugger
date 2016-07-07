@@ -1,23 +1,14 @@
-#here we are going to put all the checks together -> maybe something with unit tests?
-#so we could see either how many pass/fails or a full display of which ones were incorrect
-#i.e. display the error message
-import sys
 import os
 import glob
 import struct
 import wave
-import json
-from PyQt4 import QtGui, QtCore
-from functools import partial
-import multitrack_utils as mu
-from os.path import basename
-#
 
+# Dictionary that creates the invalid dialog error messages associated with error checks. #
 PROBLEMS = {
     'Silent': 'File is silent.',
-    'Empty': 'Folder is empty.', 
-    'Wrong_Stats': 'File format is incorrect.',  
-    'Length_As_Mix': 'File is not the same length as the associated mix.', 
+    'Empty': 'Folder is empty.',
+    'Wrong_Stats': 'File format is incorrect.', 
+    'Length_As_Mix': 'File is not correct length.', 
     'Stems_Have_Raw': 'Stems are missing corresponding raw files.',  
     'Alignment': 'Files are not aligned.',  
     'Instrument_Label': 'Instruments are incorrectly labelled.',
@@ -31,48 +22,73 @@ PROBLEMS = {
 
 
 def fill_file_status(file_status, status_dict, secondary_key):
+    """Map inner keys of file_status to status_dict keys. Use this to 
+    populate final file_status dict in check_audio.
 
-    #print file_status['Phoenix_ScotchMorris_STEM_01.wav']
-#changed file_lists from file_status
+    Parameters
+    ----------
+    file_status : dict
+        Outer dictionary containing status_dict. 
+        Keys = list of files, values = status_dict contents (check : T/F).
+    status_dict : dict
+        Inner dictionary that gives T/F for each check for each included file.
+        Keys = check name, i.e. 'Silent', values = bool (True if check passes). 
+    secondary_key : str
+        Inner key of file_status containing the error check name, i.e. 'Silent'.
+
+    Returns
+    -------
+    file_status : dict
+        Outer dictionary containing status_dict. 
+        Keys = list of files, values = status_dict contents (check : T/F).
+    """
     for key in status_dict:
         file_status[key][secondary_key] = status_dict[key]
-        #status_dict[key] = file_status[key][secondary_key]
     return file_status
 
 
-#Calls all the error checks
 def check_audio(raw_path, stem_path, mix_path):
-    "MAKING NESTED STATUS DICTIONARY"""
-    # file_list is our outer dictionary, file_status is outer
+    """Populate file_status dict with correct error check results. Send
+    this result to create_problems.
+
+    Parameters
+    ----------
+    raw_path : str
+        Path to raw folder.
+    stem_path : str
+        Path to stem folder.
+    mix_path : str
+        Path to mix file.
+
+    Returns
+    -------
+    file_status : dict
+        Outer dictionary containing status_dict. 
+        Keys = list of files, values = status_dict contents (check : T/F).
+    """
+
     file_list = []
     file_status = {}
+    mix_length = get_length(mix_path)
 
-    # get list of files -paths #
     mix_file = [os.path.basename(mix_path)]
     stem_files = glob.glob(os.path.join(stem_path, '*.wav'))
     raw_files = glob.glob(os.path.join(raw_path, '*.wav'))
 
-    # this gets the base file so it's not the long path version
+    # specifies base file instead of full file path
     new_stems = [os.path.basename(path) for path in stem_files]
     new_raws = [os.path.basename(path) for path in raw_files]
 
-    #print mix_file
-    #print new_stems
-    #print new_raws
-
     file_list = mix_file + new_stems + new_raws + [os.path.basename(raw_path)] + [os.path.basename(stem_path)]
 
-    mix_length = get_length(mix_path)
-
-    # initializes outer dictionary #
     for item in file_list:
         file_status[item] = {
             'Silent': None,
-            'Empty': None,  # done
-            'Wrong_Stats': None,  # done
-            'Length_As_Mix': None,  # done
-            'Stems_Have_Raw': None,  # done
-            'Alignment': None,  # multiple checks in here...TBD
+            'Empty': None,
+            'Wrong_Stats': None,
+            'Length_As_Mix': None,
+            'Stems_Have_Raw': None,
+            'Alignment': None,  # multiple checks in here...might split up
             'Instrument_Label': None,
             'Raws_Match_Stems': None,
             'Stem_Duplicates': None,
@@ -82,7 +98,7 @@ def check_audio(raw_path, stem_path, mix_path):
             'Stem_Present_In_Mix': None
         }
 
-    stats_status = stats_check(raw_files, stem_files)
+    stats_status = stats_check(raw_files, stem_files, mix_path)
     file_status = fill_file_status(file_status, stats_status, 'Wrong_Stats')
 
     length_status = length_check(raw_files, stem_files, mix_length)
@@ -94,12 +110,27 @@ def check_audio(raw_path, stem_path, mix_path):
     empty_status = empty_check(raw_path, stem_path)
     file_status = fill_file_status(file_status, empty_status, 'Empty')
 
-    #print(json.dumps(file_status, sort_keys=False, indent=4)) for pretty print checks
-
+    # print(json.dumps(file_status, sort_keys=False, indent=4)) for pretty print checks
     return file_status
 
+
 def create_problems(file_status):
-    problems = [] 
+    """Search for errors (false results) in file_status dict then map
+    to readable error messages from PROBLEMS dictionary.
+
+    Parameters
+    ----------
+    file_status : dict
+        Outer dictionary containing status_dict. 
+        Keys = list of files, values = status_dict contents (check : T/F).
+
+    Returns
+    -------
+    problems : list
+        Contains all error messages and associated file names that
+        resulted from a false error check.
+    """
+    problems = []
 
     for f_name in file_status:
         if False in file_status[f_name].values():
@@ -109,10 +140,27 @@ def create_problems(file_status):
     return problems
 
 
- # also add mix_path as arg to these tests and fix the helpers to check the mix statistics
+def stats_check(raw_files, stem_files, mix_path):
+    """Use is_right_stats to check if each file is correctly formatted,
+    then populate stats_dict with bool result associated with each file check.
 
-def stats_check(raw_files, stem_files):
-    # make these checkname_dict
+    Parameters
+    ----------
+    raw_files : list
+        Raw files contained within raw_path folder. 
+    stem_files: list
+        Stem files contained within stem_path folder.
+    mix_path : str
+        Path to mix file.
+
+    Returns
+    -------
+    stats_dict : dict
+        Contains bool associated with each file after checking if files are
+        correctly formatted.
+        Keys = files, values = bool (True if format is correct).
+    """
+    
     stats_dict = {}
 
     for stem in stem_files:
@@ -127,10 +175,34 @@ def stats_check(raw_files, stem_files):
         else:
             stats_dict[os.path.basename(raw)] = True
 
+    if not is_right_stats(mix_path, "mix"):
+        stats_dict[os.path.basename(mix_path)] = False
+    else:
+        stats_dict[os.path.basename(mix_path)] = True
+
     return stats_dict
 
 
 def length_check(raw_files, stem_files, mix_length):
+    """Use is_right_length to check if stem and raw files are the same length as mix,
+    then populate length_dict with bool result associated with each file check.
+
+    Parameters
+    ----------
+    raw_files : list
+        Raw files contained within raw_path folder. 
+    stem_files: list
+        Stem files contained within stem_path folder.
+    mix_length : int
+        Number of samples in mix.
+
+    Returns
+    -------
+    length_dict : dict
+        Contains bool associated with each file after checking if files are
+        the correct length.
+        Keys = files, values = bool (True if length is correct).
+    """
 
     length_dict = {}
 
@@ -138,7 +210,7 @@ def length_check(raw_files, stem_files, mix_length):
         if not is_right_length(stem, mix_length):
             length_dict[os.path.basename(stem)] = False
         else:
-            length_dict[os.path.basename(stem)] = True      
+            length_dict[os.path.basename(stem)] = True    
 
     for raw in raw_files:
         if not is_right_length(raw, mix_length):
@@ -150,6 +222,25 @@ def length_check(raw_files, stem_files, mix_length):
 
 
 def silence_check(raw_files, stem_files, mix_path):
+    """Use is_silence to check for silent files, then populates
+    silence_dict with bool associated with each file check.
+
+    Parameters
+    ----------
+    raw_files : list
+        Raw files contained within raw_path folder. 
+    stem_files: list
+        Stem files contained within stem_path folder.
+    mix_path : str
+        Path to mix file.
+
+    Returns
+    -------
+    silence_dict : dict
+        Contains bool associated with each file after checking if files
+        are silent.
+        Keys = files, values = bool (True if file is not silent).
+    """
 
     silence_dict = {}
 
@@ -172,11 +263,29 @@ def silence_check(raw_files, stem_files, mix_path):
 
     return silence_dict
 
+
 def empty_check(raw_path, stem_path):
+    """Use has_wavs to make sure selected raw and stem folders
+    are not empty.
+
+    Parameters
+    ----------
+    raw_path : str
+        Path to raw folder.
+    stem_path : str
+        Path to stem folder.
+
+    Returns
+    -------
+    silence_dict : dict
+        Contains bool associated with raw and stem folders after 
+        checking if they are empty.
+        Keys = files, values = bool (True if folders are not empty).
+    """
 
     empty_dict = {}
 
-    if not has_wavs(stem_path):  # if it doesnt have wavs (returns true)
+    if not has_wavs(stem_path):
         empty_dict[os.path.basename(stem_path)] = False
     else:
         empty_dict[os.path.basename(stem_path)] = True
@@ -189,11 +298,23 @@ def empty_check(raw_path, stem_path):
     return empty_dict
 
 
-#TAKEN FROM WAVE_SILENCE (use most of these as helper functions)
-"""Routines to test the 'emptiness' of a wave file. Mostly helper functions"""
+# Helper functions that perform the heavy-lifting for the error-checks:
+# The results of these checks are called above to create the nested dictionaries of errors.
 
 
 def has_wavs(folder_path):
+    """Check if folders contain wavefiles, i.e. are not empty.
+
+    Parameters
+    ----------
+    folder_path : str
+        Path to a folder, i.e. raw_path, stem_path.
+
+    Returns
+    -------
+    status : bool
+        True if folder path contains wavefiles.
+    """
     wav_files = glob.glob(os.path.join(folder_path, '*.wav'))
     if len(wav_files) == 0:
         return False
@@ -202,6 +323,20 @@ def has_wavs(folder_path):
 
 
 def is_right_stats(fpath, type):
+    """Check if files are correctly formatted.
+
+    Parameters
+    ----------
+    fpath : str
+        Path to a file.
+    type: str
+        Type of file, i.e. stem, raw, mix.
+
+    Returns
+    -------
+    status : bool
+        True if file is formatted correctly.
+    """
     fp = wave.open(fpath, 'rb')
     n_channels = fp.getnchannels()
     bytedepth = fp.getsampwidth()
@@ -216,18 +351,49 @@ def is_right_stats(fpath, type):
             return True
         else:
             return False
+    elif type == "mix":
+        if n_channels == 2 and bytedepth == 2 and fs == 44100:
+            return True
+        else:
+            return False
     else:
         print("Incorrect Type.")
         return False
 
 
 def get_length(fpath):
+    """Calculate number of samples i.e. length of the file.
+
+    Parameters
+    ----------
+    fpath : str
+        Path to a file. 
+
+    Returns
+    -------
+    length : int
+        Number of samples of file.
+    """
     fp = wave.open(fpath, 'rb')
     length = fp.getnframes()
     return length
 
 
 def is_right_length(fpath, ref_length):
+    """Check if stema and raw files are the same length as the mix.
+
+    Parameters
+    ----------
+    fpath : str
+        Path to a file.
+    ref_length: int
+        Reference length (num samples) of file.
+
+    Returns
+    -------
+    status : bool
+        True if file is the correcct length.
+    """
     length = get_length(fpath)
     if length == ref_length:
         return True
@@ -299,6 +465,7 @@ def _byte_string_to_data(byte_string, channels, bytedepth):
     return struct.unpack('%d%s' % (N, fmt) * channels, byte_string)
 
 
+# This isn't catching everything that it should be right now. Look back at this.
 def is_silence(wavefile, threshold=16, framesize=None):
     """Check if a wave file is 'silent', i.e. all values are smaller than a
     given threshold.

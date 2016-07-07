@@ -32,6 +32,7 @@ EMPTY_RAW = relpath('data/Phoenix_ScotchMorris/Empty_Test_RAW')
 
 SILENCE = relpath('data/Phoenix_ScotchMorris/Piano_L.R.wav')
 
+
 class IsSilenceTest(unittest.TestCase):
 
     def test_is_silence(self):

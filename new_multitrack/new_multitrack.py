@@ -1,6 +1,3 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-
 import sys
 import os
 import glob
@@ -8,9 +5,10 @@ import yaml
 from PyQt4 import QtGui, QtCore
 from functools import partial
 import multitrack_utils as mu
-import validation
-from validation import check_audio #added this to go with our new file
+from validation import check_audio
 from validation import create_problems
+import sox
+import pysox
 
 
 INST_TAXONOMY = 'taxonomy.yaml'
@@ -111,22 +109,19 @@ class FilePrompt(QtGui.QDialog):
         self.save_choice.setText(self.save_path)
         self.nextEnabled()
 
-    #allow next to be clicked only after the user has selected each input
-
     def checkNext(self):
         if self.raw_path and self.stem_path and \
            self.mix_path and self.save_path:
-           
+
             file_status = check_audio(self.raw_path, self.stem_path, self.mix_path)
             problems = create_problems(file_status)
 
             if len(problems) > 0:
-                invalid_dialog = InvalidFiles(problems) #also change invalid files/dialog
+                invalid_dialog = InvalidFiles(problems)
                 if not invalid_dialog.exec_():
                     sys.exit(-1)
             else:
                 self.accept()
-
 
     def nextEnabled(self):
         if self.raw_path and self.stem_path and self.mix_path:
@@ -188,7 +183,8 @@ class InvalidFiles(QtGui.QDialog):
     def quit_clicked(self):
         QtCore.QCoreApplication.instance().quit()
 
-#METADATA- this is the window that pops up where you enter all the metadata
+# METADATA- this is the window that pops up where you enter all the metadata
+
 
 class Metadata(QtGui.QDialog):
 
