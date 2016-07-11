@@ -7,8 +7,10 @@ from functools import partial
 import multitrack_utils as mu
 from validation import check_audio
 from validation import create_problems
+from validation import get_dur
 import sox
 import pysox
+import librosa
 
 
 INST_TAXONOMY = 'taxonomy.yaml'
@@ -87,7 +89,7 @@ class FilePrompt(QtGui.QDialog):
     def findMix(self):
         self.mix_path = str(QtGui.QFileDialog.getOpenFileName(self,
                             "Select the Mix..,", '.', "Audio Files (*.wav)")) #???
-        self.mix_choice.setText(self.mix_path)
+        self.mix_choice.setText(self.mix_path) #displays long path name that goes off screen and is annoying
         self.basedir = os.path.dirname(self.mix_path)
         self.nextEnabled()
 
@@ -188,7 +190,7 @@ class InvalidFiles(QtGui.QDialog):
 
 class Metadata(QtGui.QDialog):
 
-    def __init__(self):
+    def __init__(self, mix_path):
         super(Metadata, self).__init__()
         self.track_name = QtGui.QLineEdit()
         self.artist = QtGui.QLineEdit()
@@ -196,6 +198,7 @@ class Metadata(QtGui.QDialog):
         self.composer = QtGui.QLineEdit()
         self.producer = QtGui.QLineEdit()
         self.website = QtGui.QLineEdit()
+        self.mix_path = mix_path
 
         self.instrumental = QtGui.QComboBox()
         self.instrumental.addItems(["", "yes", "no"])
@@ -268,6 +271,8 @@ class Metadata(QtGui.QDialog):
         self.track_origin.setStyleSheet(self.ss_cb)
 
         complete = True
+
+        # AFTER THESE ARE LEFT EMPTY AND BOX IS RED->format swithces and you can't see options anymore
         if not self.track_name.displayText():
             self.track_name.setStyleSheet("border: 2px solid red;")
             complete = False
@@ -277,6 +282,7 @@ class Metadata(QtGui.QDialog):
         if not self.instrumental.currentText():
             self.instrumental.setStyleSheet("border: 2px solid red;")
             complete = False
+        
         if not self.excerpt.currentText():
             self.excerpt.setStyleSheet("border: 2px solid red;")
             complete = False
@@ -289,6 +295,37 @@ class Metadata(QtGui.QDialog):
         if not self.track_origin.currentText():
             self.track_origin.setStyleSheet("border: 2px solid red;")
             complete = False
+
+        # ADD EXCERPT CHECK HERE   
+        # window is popping up at the correct time, but we need to make sure buttons are doing the right thing when it does pop up
+        # fix the elses, clicking no should return  you to filled in metadata
+        dur = get_dur(self.mix_path) 
+        if self.excerpt.currentText() == 'yes':
+            if dur < 30.0:
+                complete = True
+            else: 
+                complete = False 
+                alert = QtGui.QMessageBox()
+                alert.setText("You classified this file as an excerpt, but it's pretty long. Are you sure it's an excerpt?")
+                alert.setStandardButtons(QtGui.QMessageBox.Yes | QtGui.QMessageBox.No)
+                alert.setDefaultButton(QtGui.QMessageBox.No)
+                # alert.buttonClicked.connect(checkSubmit)
+                alert.exec_()
+                complete = True
+        elif self.excerpt.currentText() == 'no':
+            if dur > 60.0:
+                complete = True
+            else:
+                complete = False 
+                alert = QtGui.QMessageBox()
+                alert.setText("You did not classify this file as an excerpt, but it's pretty short. Are you sure it's not an excerpt?")
+                alert.setStandardButtons(QtGui.QMessageBox.Yes | QtGui.QMessageBox.No)
+                alert.setDefaultButton(QtGui.QMessageBox.No)
+                #alert.buttonClicked.connect(checkSubmit)
+                alert.setDefaultButton(QtGui.QMessageBox.No)
+                alert.exec_()
+                complete = True
+
 
         if complete:
             self.recordResponses()
@@ -310,6 +347,7 @@ class Metadata(QtGui.QDialog):
         self.metadata = mdata
 
 
+# so far we have a play column, need to add clickable play button
 class Stems(QtGui.QDialog):
     def __init__(self, stem_dir):
         super(Stems, self).__init__()
@@ -322,6 +360,7 @@ class Stems(QtGui.QDialog):
         self.n_items = len(self.stem_names)
 
         self.stem_list = []
+        self.stem_play = []
         self.stem_group = []
         self.stem_inst = []
         self.stem_melody = []
@@ -335,6 +374,12 @@ class Stems(QtGui.QDialog):
             # Name of Stem #
             self.stem_list.append(QtGui.QLabel())
             self.stem_list[i].setText(self.stem_names[i])
+            # Play button #
+            self.stem_play.append(QtGui.QLabel())
+            # needs to be a list of play buttons connected to function 'play' for each stem
+            #self.stem_play = QPushButton(self.tr(&Play))
+            #self.stem_play.clicked.connect(self.play)
+
             # combo box for inst group #
             self.stem_group.append(QtGui.QComboBox())
             self.stem_group[i].addItem("")
@@ -357,6 +402,11 @@ class Stems(QtGui.QDialog):
         file_header = QtGui.QLabel()
         file_header.setText("File Name")
         file_header.setFont(font)
+
+        # adding play button column
+        play_header = QtGui.QLabel()
+        play_header.setText("Play")
+        play_header.setFont(font)
 
         group_header = QtGui.QLabel()
         group_header.setText("Instrument Group")
@@ -402,18 +452,20 @@ class Stems(QtGui.QDialog):
         ##################################
 
         form.addWidget(file_header, 1, 0)
-        form.addWidget(group_header, 1, 1)
-        form.addWidget(inst_header, 1, 2)
-        form.addWidget(melody_header, 1, 3)
-        form.addWidget(bass_header, 1, 4)
+        form.addWidget(play_header, 1, 1) #added
+        form.addWidget(group_header, 1, 2)
+        form.addWidget(inst_header, 1, 3)
+        form.addWidget(melody_header, 1, 4)
+        form.addWidget(bass_header, 1, 5)
 
         j = 2
         for i in range(self.n_items):
             form.addWidget(self.stem_list[i], j, 0)
-            form.addWidget(self.stem_group[i], j, 1)
-            form.addWidget(self.stem_inst[i], j, 2)
-            form.addWidget(self.stem_melody[i], j, 3)
-            form.addWidget(self.stem_bass[i], j, 4)
+            form.addWidget(self.stem_play[i], j, 1) #added
+            form.addWidget(self.stem_group[i], j, 2)
+            form.addWidget(self.stem_inst[i], j, 3)
+            form.addWidget(self.stem_melody[i], j, 4)
+            form.addWidget(self.stem_bass[i], j, 5)
             j = j + 1
 
         self.verticallayout.addWidget(self.scroll_area)
@@ -425,6 +477,10 @@ class Stems(QtGui.QDialog):
         self.center()
 
         self.show()
+
+    # function for play button use pysox quickplay   
+    # def play(self):
+
 
     def center(self):
         frameGm = self.frameGeometry()
@@ -551,7 +607,7 @@ class Raw(QtGui.QDialog):
         file_header.setFont(font)
 
         stem_header = QtGui.QLabel()
-        stem_header.setText("Stem")
+        stem_header.setText("Associated Stem")
         stem_header.setFont(font)
 
         group_header = QtGui.QLabel()
@@ -705,7 +761,6 @@ class Raw(QtGui.QDialog):
             raw_info[k]['inst'] = str(self.raw_inst[i].currentText())
             raw_info[k]['stem'] = str(self.raw_stem[i].currentText())
         self.raw_info = raw_info
-
 
 
 class MelRank(QtGui.QDialog):
@@ -870,7 +925,7 @@ def main():
     if not rw.exec_():
         sys.exit(-1)
 
-    meta = Metadata()
+    meta = Metadata(file_prompt.mix_path)
     if not meta.exec_():
         sys.exit(-1)
 

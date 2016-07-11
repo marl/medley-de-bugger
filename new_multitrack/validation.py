@@ -2,6 +2,10 @@ import os
 import glob
 import struct
 import wave
+import sox
+import numpy as np
+import tempfile
+import librosa
 
 # Dictionary that creates the invalid dialog error messages associated with error checks. #
 PROBLEMS = {
@@ -10,7 +14,8 @@ PROBLEMS = {
     'Wrong_Stats': 'File format is incorrect.', 
     'Length_As_Mix': 'File is not correct length.', 
     'Stems_Have_Raw': 'Stems are missing corresponding raw files.',  
-    'Alignment': 'Files are not aligned.',  
+    'Alignment1': 'Raw files are not aligned with the mix.',  # sum of raws
+    'Alignment2': 'Stem files are not aligned with the mix', # sum of stems
     'Instrument_Label': 'Instruments are incorrectly labelled.',
     'Raws_Match_Stems': 'Raw files do not correspond to correct stems.',
     'Stem_Duplicates': 'Duplicate stem files exist.',
@@ -88,7 +93,8 @@ def check_audio(raw_path, stem_path, mix_path):
             'Wrong_Stats': None,
             'Length_As_Mix': None,
             'Stems_Have_Raw': None,
-            'Alignment': None,  # multiple checks in here...might split up
+            'Alignment1': None,  # Sum of raws are not aligned with mix.
+            'Alignment2': None, # Sum of stems are not aligned with mix.
             'Instrument_Label': None,
             'Raws_Match_Stems': None,
             'Stem_Duplicates': None,
@@ -109,6 +115,13 @@ def check_audio(raw_path, stem_path, mix_path):
 
     empty_status = empty_check(raw_path, stem_path)
     file_status = fill_file_status(file_status, empty_status, 'Empty')
+
+    # Sum of raws not aligned with mix
+    alignment1_status, alignment2_status = is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path)
+    file_status = fill_file_status(file_status, alignment1_status, 'Alignment1')
+
+    alignment1_stats, alignment2_stats = is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path)
+    file_status = fill_file_status(file_status, alignment2_stats, 'Alignment2')
 
     # print(json.dumps(file_status, sort_keys=False, indent=4)) for pretty print checks
     return file_status
@@ -321,7 +334,7 @@ def has_wavs(folder_path):
     else:
         return True
 
-
+#update 
 def is_right_stats(fpath, type):
     """Check if files are correctly formatted.
 
@@ -338,9 +351,10 @@ def is_right_stats(fpath, type):
         True if file is formatted correctly.
     """
     fp = wave.open(fpath, 'rb')
-    n_channels = fp.getnchannels()
+    n_channels = sox.file_info.channels(fpath)
     bytedepth = fp.getsampwidth()
-    fs = fp.getframerate()
+    float_s = sox.file_info.sample_rate(fpath)
+    fs = int(float_s)
     if type == "stem":
         if n_channels == 2 and bytedepth == 2 and fs == 44100:
             return True
@@ -360,7 +374,7 @@ def is_right_stats(fpath, type):
         print("Incorrect Type.")
         return False
 
-
+# Updated using pysox. #
 def get_length(fpath):
     """Calculate number of samples i.e. length of the file.
 
@@ -374,10 +388,13 @@ def get_length(fpath):
     length : int
         Number of samples of file.
     """
-    fp = wave.open(fpath, 'rb')
-    length = fp.getnframes()
+    length = sox.file_info.num_samples(fpath)
     return length
 
+# get duration in seconds
+def get_dur(fpath):
+    dur = sox.file_info.duration(fpath)
+    return dur
 
 def is_right_length(fpath, ref_length):
     """Check if stema and raw files are the same length as the mix.
@@ -400,12 +417,16 @@ def is_right_length(fpath, ref_length):
     else:
         return False
 
-
-def frame_buffer(fp, framesize):
+# Mostly updated using pysox. #
+# FIX COMMENTS
+# Questions: what is the pysox equivalen of sample width? is that the same as bitrate?
+def get_file_stats(fpath):
     """Provide frames of numerical wave data.
 
     Parameters
     ----------
+    fpath: str
+        Path to file.
     fp : wave.Wave_read
         An open wavefile object to buffer.
     framesize : int
@@ -421,52 +442,13 @@ def frame_buffer(fp, framesize):
             2. The final frame will have length L, where
                n_channels <= L <= framesize * 2, i.e. it will not be empty.
     """
-    n_channels = fp.getnchannels()
-    bytedepth = fp.getsampwidth()
-    raw_data = fp.readframes(framesize)
-    frame = _byte_string_to_data(raw_data, n_channels, bytedepth)
-    while len(frame) == framesize * n_channels:
-        yield frame
-        raw_data = fp.readframes(framesize)
-        frame = _byte_string_to_data(raw_data, n_channels, bytedepth)
-    if frame:
-        yield frame
+    n_channels = sox.file_info.channels(fpath)
+    bytedepth = sox.file_info.bitrate(fpath)
+    sample_rate = sox.file_info.sample_rate(fpath) 
 
-
-def _byte_string_to_data(byte_string, channels, bytedepth):
-    """Convert a byte string into a numpy array.
-
-    Parameters
-    ----------
-    byte_string : str
-        raw byte string
-    channels : int
-        number of channels to unpack from frame
-    bytedepth : int
-        byte-depth of audio data
-
-    Returns
-    -------
-    array : np.ndarray of floats
-        array with shape (num_samples, channels), bounded on [-1.0, 1.0)
-    """
-    # Number of values per channel.
-    N = len(byte_string) / channels / bytedepth
-    # Assume 2-byte encoding.
-    fmt = 'h'
-    if bytedepth == 3:
-        tmp = list(byte_string)
-        byte_string = "".join(
-            [tmp.insert(n * 4 + 3, struct.pack('b', 0)) for n in range(N)])
-
-    if bytedepth in [3, 4]:
-        fmt = "i"
-
-    return struct.unpack('%d%s' % (N, fmt) * channels, byte_string)
-
-
+# What kind of pysox thing should we use for the silence check?
 # This isn't catching everything that it should be right now. Look back at this.
-def is_silence(wavefile, threshold=16, framesize=None):
+def is_silence(fpath, threshold=16, framesize=None): 
     """Check if a wave file is 'silent', i.e. all values are smaller than a
     given threshold.
 
@@ -484,9 +466,129 @@ def is_silence(wavefile, threshold=16, framesize=None):
     status : bool
         True if the file all values are less than the given threshold.
     """
-    fp = wave.open(wavefile, 'rb')
-    framesize = fp.getframerate() if framesize is None else framesize
-    for frame in frame_buffer(fp, framesize):
-        if max([abs(min(frame)), max(frame)]) >= threshold:
-            return False
-    return True
+    # hold to fix with sox
+    # fp = wave.open(fpath, 'rb')
+    # float_s = sox.file_info.sample_rate(fpath)
+    # fs = int(float_s)
+    # framesize = fs if framesize is None else framesize
+    # for frame in frame_buffer(fpath, fp, framesize): 
+    #     if max([abs(min(frame)), max(frame)]) >= threshold:
+    #         return False
+    return False
+
+
+def downsample(fpath, sr=2000): 
+    output_file = tempfile.NamedTemporaryFile(suffix='.wav')
+    output_path = output_file.name
+    tfm = sox.Transformer(fpath, output_path)
+    tfm.rate(sr, 'm')
+    tfm.build()
+
+    y, sr = librosa.load(output_path, sr=sr)
+
+    return y, sr
+
+
+# So far this only works on the sum of raw and sum of stems compared to the mix. 
+# This also includes the check that feeds into fill file status.
+def is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path): 
+
+
+    sr = 2000
+    output_stem = tempfile.NamedTemporaryFile(suffix='.wav')
+    output_path_stem = output_stem.name # path where file is saved
+    stem_sum = sox.Combiner(stem_files, output_path_stem, 'concatenate') 
+    stem_sum.rate(2000, 'm')
+    stem_sum.build()
+
+    output_raw = tempfile.NamedTemporaryFile(suffix='.wav')
+    output_path_raw = output_raw.name
+    raw_sum = sox.Combiner(raw_files, output_path_raw, 'concatenate')
+    raw_sum.rate(2000, 'm')
+    raw_sum.build()
+
+    y_stem, sr = librosa.load(output_path_stem, sr=sr, duration=30)
+    y_raw, sr = librosa.load(output_path_raw, sr=sr, duration=30)
+    y_mix, sr = librosa.load(mix_path, sr=sr, duration=30)
+
+    stem_sum_corr = np.correlate(y_stem, y_mix, 'full')
+    raw_sum_corr = np.correlate(y_raw, y_mix, 'full')
+
+    N = len(y_mix)
+    a = np.arange(0, N)
+    a_rev = np.arange(0, N-1)
+    b = a_rev[ : :-1]  
+    c = np.concatenate((a, b))
+
+    stem_corr_val = stem_sum_corr / (c + 0.0000000000000000000001)
+    raw_corr_val = raw_sum_corr / (c + 0.0000000000000000000001)
+
+    # built in check for ease 
+
+    alignment1_dict = {} # raw sum
+    alignment2_dict = {} # stem sum
+
+    center = (N+1) / 2
+    stem_index = np.argmax(stem_corr_val)
+    raw_index = np.argmax(raw_corr_val)
+
+    if abs(stem_index - center) <= 2:
+        alignment2_dict[os.path.basename(stem_path)] = False
+    else:
+        alignment2_dict[os.path.basename(stem_path)] = True
+
+    if abs(raw_index - center) <= 2:
+        alignment1_dict[os.path.basename(raw_path)] = False
+    else:
+        alignment1_dict[os.path.basename(raw_path)] = True
+
+    print alignment1_dict, alignment2_dict
+    return alignment1_dict, alignment2_dict
+
+    # how to specifiy which raws are with associated stems? need to get this from new_multitrack i think
+    # inidividual raws align with associated stems (raw1 align stem, raw2 align stem)
+    # SKIP THESE FOR NOW
+
+    # for stem in down_stems:
+    #     for raw in down_raws:
+    #         indiv_raw_corr_val = np.correlate(raw, stem, 'full')
+
+    #     for val in indiv_raw_corr_val:
+    #         if val != 0:
+    #             return False
+    #         else:
+    #             return True
+ 
+    # # individual stems align with mix (stem1 align mix, stem2 align mix)
+    # for stem in down_stems:
+    #     indiv_stem_corr_val = np.correlate(stem, mix_path, 'full')
+
+    #     for val in indiv_stem_corr_val:
+    #         if val != 0:
+    #             return False
+    #         else: 
+    #             return True
+
+    # # not sure how to test if sum of raws align with each associated stems?
+    # # sum of raws align with stem (raw1+raw2... align stem)
+    # raw_sum_stem_corr_val = np.correlate(raw_sum, stem) #wrong
+
+    # for val in raw_sum_stem_corr_val:
+    #         if val != 0:
+    #             return False
+    #         else 
+    #             return True
+
+        # # Downsampling
+    # raw_samples = {}
+    # stem_samples = {}
+
+    # for raw in raw_files:
+    #     raw_samples[raw] = downsample(raw, sr=sr)
+
+    # for stem in stem_files:
+    #     stem_samples[stem] = downsample(stem, sr=sr)
+
+    # down_mix = downsample(mix_path, sr=sr)
+
+
