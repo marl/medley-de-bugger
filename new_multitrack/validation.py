@@ -350,8 +350,9 @@ def is_right_stats(fpath, type):
     status : bool
         True if file is formatted correctly.
     """
+    fp = wave.open(fpath, 'rb')
     n_channels = sox.file_info.channels(fpath)
-    bytedepth = sox.file_info.bitrate(fpath)
+    bytedepth = fp.getsampwidth()
     float_s = sox.file_info.sample_rate(fpath)
     fs = int(float_s)
     if type == "stem":
@@ -574,9 +575,10 @@ def is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path):
     if not np.abs(stem_index - center) <= 5:
         stem_sum_alignment_dict[os.path.basename(stem_path)] = False
     else:
-        alignment2_dict[os.path.basename(stem_path)] = True
+        stem_sum_alignment_dict[os.path.basename(stem_path)] = True
+
     if not np.abs(raw_index - center) <= 5:
-        stem_sum_alignment_dict[os.path.basename(raw_path)] = False
+        raw_sum_alignment_dict[os.path.basename(raw_path)] = False
     else:
         raw_sum_alignment_dict[os.path.basename(raw_path)] = True
 

@@ -370,16 +370,18 @@ class Stems(QtGui.QDialog):
 
     def initUI(self):
 
+        play_function_list = []
+
         for i in range(self.n_items):
             # Name of Stem #
             self.stem_list.append(QtGui.QLabel())
             self.stem_list[i].setText(self.stem_names[i])
             # Play button #
-            self.stem_play.append(QtGui.QLabel())
-            # needs to be a list of play buttons connected to function 'play' for each stem
-            #self.stem_play = QPushButton(self.tr(&Play))
-            #self.stem_play.clicked.connect(self.play)
-
+            
+            self.stem_play.append(QtGui.QPushButton())          
+            play_function = lambda x: lambda: play_audio(self.stem_paths[x])
+            self.stem_play[i].clicked.connect(play_function(i))
+            self.stem_play[i].setIcon(QtGui.QIcon(QtGui.QPixmap('play-button1.png')))
             # combo box for inst group #
             self.stem_group.append(QtGui.QComboBox())
             self.stem_group[i].addItem("")
@@ -866,6 +868,15 @@ class NotAllStems(QtGui.QDialog):
         centerPoint = QtGui.QApplication.desktop().screenGeometry(screen).center()
         frameGm.moveCenter(centerPoint)
         self.move(frameGm.topLeft())
+
+
+def play_audio(file_path):
+    print file_path
+    tfm = sox.Transformer(file_path, 'tmp.wav')
+    tfm.silence()
+    tfm.trim(0, 5)
+    tfm.fade(fade_in_len=0.5, fade_out_len=0.5)
+    tfm.preview()
 
 
 def process_data(save_path, metadata, mix_path, stem_info, raw_info, ranking):
