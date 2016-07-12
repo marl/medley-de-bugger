@@ -42,17 +42,19 @@ WRONG_CHANNELS_STEMS = relpath('data/Phoenix_ScotchMorris_ChannelTest/Phoenix_Sc
 # RAW_FILES = [RAW_INPUT1, RAW_INPUT2, RAW_INPUT3, RAW_INPUT4_1, RAW_INPUT4_2]
 # STEM_FILES = [STEM_INPUT1, STEM_INPUT2, STEM_INPUT3, STEM_INPUT4]
 
-# class IsSilenceTest(unittest.TestCase):
+# each check and helper should have seperate class
 
-#     def test_is_silence(self):
-#         actual = validation.is_silence(SILENT_FILE)
-#         expected = True
-#         self.assertEqual(actual, expected)
+class IsSilenceTest(unittest.TestCase):
 
-#     def test_is_not_silence(self):
-#         actual = validation.is_silence(RAW_INPUT3)
-#         expected = False
-#         self.assertEqual(actual, expected)
+    def test_is_silence(self):
+        actual = validation.is_silence(SILENT_FILE)
+        expected = True
+        self.assertEqual(actual, expected)
+
+    def test_is_not_silence(self):
+        actual = validation.is_silence(RAW_INPUT3)
+        expected = False
+        self.assertEqual(actual, expected)
 
 
 #TEMPLATE
@@ -93,67 +95,3 @@ class TestLengthCheck(unittest.TestCase):
             'Phoenix_ScotchMorris_STEM_04.wav': False
         }
         self.assertEqual(actual, expected)
-
-
-class CheckAudioTest(unittest.TestCase):
-
-    # This error-free initialization test passes - commented so other tests on same inputs will pass. #
-    # def test_no_problems_1(self):
-    #     file_status = validation.check_audio(VALID_RAW, VALID_STEMS, VALID_MIX)
-    #     problems = validation.create_problems(file_status)
-
-    #     self.assertEqual([], problems)
-
-    def setUp(self):
-        self.raw_files = glob.glob(os.path.join(VALID_RAW, "*.wav"))
-        self.stem_files = glob.glob(os.path.join(VALID_STEMS, "*.wav"))
-        self.mix_path = VALID_MIX
-
-
-    def test_align_false(self):
-        file_status = validation.check_audio(MISALIGNED_STEMS, ALIGN_TEST_STEMS, ALIGN_TEST_MIX)
-        problems = validation.create_problems(file_status)
-        print problems
-        self.assertIn('Phoenix_ScotchMorris_STEMS : Stem files are not aligned with the mix.', problems)
-        self.assertNotIn('Phoenix_ScotchMorris_RAW : Raw files are not aligned with the mix.', problems)
-    
-    # def test_empty_stems(self):
-    #     file_status = validation.check_audio(VALID_RAW, EMPTY_STEMS, VALID_MIX)
-    #     problems = validation.create_problems(file_status)
-
-    #     self.assertIn('Empty_Test_STEMS : Folder is empty.', problems)
-
-    # def test_empty_raw(self):
-    #     file_status = validation.check_audio(EMPTY_RAW, VALID_STEMS, VALID_MIX)
-    #     problems = validation.create_problems(file_status)
-        
-    #     self.assertIn('Empty_Test_RAW : Folder is empty.', problems)
-
-    # def test_empty_both(self):
-    #     file_status = validation.check_audio(EMPTY_RAW, EMPTY_STEMS, VALID_MIX)
-    #     problems = validation.create_problems(file_status)
-        
-    #     self.assertIn('Empty_Test_RAW : Folder is empty.', problems)
-    #     self.assertIn('Empty_Test_STEMS : Folder is empty.', problems)
-
-    # def test_silence_mix(self):
-    #     file_status = validation.check_audio(VALID_RAW, VALID_STEMS, SILENT_FILE)
-    #     problems = validation.create_problems(file_status)
-
-    #     self.assertIn('Piano_L.R.wav : File is silent.', problems)
-
-    # def test_channels_error(self):
-    #     file_status = validation.check_audio(WRONG_CHENNELS_RAW, WRONG_CHANNELS_STEMS, CHAN_TEST_MIX)
-    #     problems = validation.create_problems(file_status)
-    
-    #     self.assertIn('stem_wrong.wav : File format is incorrect.', problems)
-
-    # def test_length_error(self):
-    #     file_status = validation.check_audio(VALID_RAW, VALID_STEMS, VALID_MIX)
-    #     problems = validation.create_problems(file_status)
-    
-    #     self.assertIn('wrong_length.wav : File is not correct length.', problems)
-
-
-
-
