@@ -37,6 +37,10 @@ CHAN_TEST_RAW = relpath('data/Phoenix_ScotchMorris_ChannelTest/Phoenix_ScotchMor
 CHAN_TEST_STEMS = relpath('data/Phoenix_ScotchMorris_ChannelTest/Phoenix_ScotchMorris_STEMS')
 CHAN_TEST_MIX = relpath('data/Phoenix_ScotchMorris_ChannelTest/Phoenix_ScotchMorris_MIX.wav')
 
+ALIGN_TEST_RAW = relpath('data/Phoenix_ScotchMorris_Alignment/Phoenix_ScotchMorris_RAW')
+ALIGN_TEST_STEMS = relpath('data/Phoenix_ScotchMorris_Alignment/Phoenix_ScotchMorris_STEMS')
+ALIGN_TEST_MIX = relpath('data/Phoenix_ScotchMorris_Alignment/Phoenix_ScotchMorris_MIX.wav')
+
 RAW_FILES = [RAW_INPUT1, RAW_INPUT2, RAW_INPUT3, RAW_INPUT4_1, RAW_INPUT4_2]
 STEM_FILES = [STEM_INPUT1, STEM_INPUT2, STEM_INPUT3, STEM_INPUT4]
 
@@ -67,17 +71,14 @@ class CheckAudioTest(unittest.TestCase):
         self.stem_files = glob.glob(os.path.join(STEM_FOLDER, "*.wav"))
         self.mix_path = MIX_INPUT
 
-    # the first check is going to be empty check...pysox will not run if the folder is empty
-    # def test_align_test(self):
-    #     alignment_dict = validation.alignment_check(RAW_FILES, STEM_FILES, RAW_FOLDER, STEM_FOLDER, MIX_INPUT)
-    #     self.assertTrue({'Phoenix_ScotchMorris_STEMS': True} in alignment_dict)
 
-    def test_align_stuff(self):
-        file_status = validation.check_audio(RAW_FOLDER, STEM_FOLDER, MIX_INPUT)
+    def test_align_false(self):
+        file_status = validation.check_audio(ALIGN_TEST_RAW, ALIGN_TEST_STEMS, ALIGN_TEST_MIX)
         problems = validation.create_problems(file_status)
-
-        self.assertEqual([], problems)
-
+        print problems
+        self.assertIn('Phoenix_ScotchMorris_STEMS : Stem files are not aligned with the mix.', problems)
+        self.assertNotIn('Phoenix_ScotchMorris_RAW : Raw files are not aligned with the mix.', problems)
+    
     # def test_empty_stems(self):
     #     file_status = validation.check_audio(RAW_FOLDER, EMPTY_STEMS, MIX_INPUT)
     #     problems = validation.create_problems(file_status)

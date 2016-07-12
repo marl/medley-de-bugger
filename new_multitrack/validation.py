@@ -6,6 +6,7 @@ import sox
 import numpy as np
 import tempfile
 import librosa
+import matplotlib.pyplot as plt
 
 # Dictionary that creates the invalid dialog error messages associated with error checks. #
 PROBLEMS = {
@@ -14,8 +15,8 @@ PROBLEMS = {
     'Wrong_Stats': 'File format is incorrect.', 
     'Length_As_Mix': 'File is not correct length.', 
     'Stems_Have_Raw': 'Stems are missing corresponding raw files.',  
-    'Alignment1': 'Raw files are not aligned with the mix.',  # sum of raws
-    'Alignment2': 'Stem files are not aligned with the mix', # sum of stems
+    'Raw_Sum_Alignment': 'Raw files are not aligned with the mix.',  # sum of raws
+    'Stem_Sum_Alignment': 'Stem files are not aligned with the mix.', # sum of stems
     'Instrument_Label': 'Instruments are incorrectly labelled.',
     'Raws_Match_Stems': 'Raw files do not correspond to correct stems.',
     'Stem_Duplicates': 'Duplicate stem files exist.',
@@ -93,8 +94,8 @@ def check_audio(raw_path, stem_path, mix_path):
             'Wrong_Stats': None,
             'Length_As_Mix': None,
             'Stems_Have_Raw': None,
-            'Alignment1': None,  # Sum of raws are not aligned with mix.
-            'Alignment2': None, # Sum of stems are not aligned with mix.
+            'Raw_Sum_Alignment': None,  # Sum of raws are not aligned with mix.
+            'Stem_Sum_Alignment': None, # Sum of stems are not aligned with mix.
             'Instrument_Label': None,
             'Raws_Match_Stems': None,
             'Stem_Duplicates': None,
@@ -117,11 +118,11 @@ def check_audio(raw_path, stem_path, mix_path):
     file_status = fill_file_status(file_status, empty_status, 'Empty')
 
     # Sum of raws not aligned with mix
-    alignment1_status, alignment2_status = is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path)
-    file_status = fill_file_status(file_status, alignment1_status, 'Alignment1')
+    raw_sum_alignment_status, stem_sum_alignment_status = is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path)
+    file_status = fill_file_status(file_status, raw_sum_alignment_status, 'Raw_Sum_Alignment')
 
-    alignment1_stats, alignment2_stats = is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path)
-    file_status = fill_file_status(file_status, alignment2_stats, 'Alignment2')
+    raw_sum_alignment_status, stem_sum_alignment_status = is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path)
+    file_status = fill_file_status(file_status, stem_sum_alignment_status, 'Stem_Sum_Alignment')
 
     # print(json.dumps(file_status, sort_keys=False, indent=4)) for pretty print checks
     return file_status
@@ -314,7 +315,6 @@ def empty_check(raw_path, stem_path):
 # Helper functions that perform the heavy-lifting for the error-checks:
 # The results of these checks are called above to create the nested dictionaries of errors.
 
-
 def has_wavs(folder_path):
     """Check if folders contain wavefiles, i.e. are not empty.
 
@@ -334,7 +334,7 @@ def has_wavs(folder_path):
     else:
         return True
 
-#update 
+
 def is_right_stats(fpath, type):
     """Check if files are correctly formatted.
 
@@ -350,9 +350,8 @@ def is_right_stats(fpath, type):
     status : bool
         True if file is formatted correctly.
     """
-    fp = wave.open(fpath, 'rb')
     n_channels = sox.file_info.channels(fpath)
-    bytedepth = fp.getsampwidth()
+    bytedepth = sox.file_info.bitrate(fpath)
     float_s = sox.file_info.sample_rate(fpath)
     fs = int(float_s)
     if type == "stem":
@@ -418,8 +417,6 @@ def is_right_length(fpath, ref_length):
         return False
 
 # Mostly updated using pysox. #
-# FIX COMMENTS
-# Questions: what is the pysox equivalen of sample width? is that the same as bitrate?
 def get_file_stats(fpath):
     """Provide frames of numerical wave data.
 
@@ -478,6 +475,22 @@ def is_silence(fpath, threshold=16, framesize=None):
 
 
 def downsample(fpath, sr=2000): 
+    """Downsample wav files to ease cross-correlation process.
+
+    Parameters
+    ----------
+    fpath: str
+        Path to a wavefile.
+    sr: int > 0
+        Sample rate. Default = 2000.
+
+    Returns
+    -------
+    y:  np.ndarray [shape=(n,) or (2,n)]
+        Audio time series (mono or stereo).
+    sr: int > 0
+        Sample rate.
+    """
     output_file = tempfile.NamedTemporaryFile(suffix='.wav')
     output_path = output_file.name
     tfm = sox.Transformer(fpath, output_path)
@@ -492,11 +505,34 @@ def downsample(fpath, sr=2000):
 # So far this only works on the sum of raw and sum of stems compared to the mix. 
 # This also includes the check that feeds into fill file status.
 def is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path): 
+    """Test if the sum of the raw files and the sum of the stem files are correctly
+    aligned with the mix file. Includes check to populate alignment dicts with associated bools.
 
+    Parameters
+    ----------
+    raw_files : list
+        Raw files contained within raw_path folder. 
+    stem_files: list
+        Stem files contained within stem_path folder.
+    raw_path: str
+        Path to raw file folder.
+    stem_path: str
+        Path to stem file folder.
+    mix_path : str
+        Path to mix file.
 
+    Returns
+    -------
+    raw_sum_alignment_dict: dict
+        Contains bool associated with raw folder after
+        checking if the sum isn't aligned with the mix.
+    stem_sum_alignment_dict: dict
+        Contains bool associated with stem folder after
+        checking if the sum isn't aligned with the mix.
+    """
     sr = 2000
-    output_stem = tempfile.NamedTemporaryFile(suffix='.wav')
-    output_path_stem = output_stem.name # path where file is saved
+    output_stem = tempfile.NamedTemporaryFile(suffix='.wav')  
+    output_path_stem = output_stem.name 
     stem_sum = sox.Combiner(stem_files, output_path_stem, 'concatenate') 
     stem_sum.rate(2000, 'm')
     stem_sum.build()
@@ -515,80 +551,33 @@ def is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path):
     raw_sum_corr = np.correlate(y_raw, y_mix, 'full')
 
     N = len(y_mix)
-    a = np.arange(0, N)
-    a_rev = np.arange(0, N-1)
+    a = np.arange(1, N+1)
+    a_rev = np.arange(1, N)
     b = a_rev[ : :-1]  
     c = np.concatenate((a, b))
+    c = c.astype(float)
 
-    stem_corr_val = stem_sum_corr / (c + 0.0000000000000000000001)
-    raw_corr_val = raw_sum_corr / (c + 0.0000000000000000000001)
+    stem_corr_val = np.abs(stem_sum_corr) / c
+    raw_corr_val = np.abs(raw_sum_corr) / c
 
-    # built in check for ease 
+    raw_sum_alignment_dict = {} # raw sum dict
+    stem_sum_alignment_dict = {} # stem sum dict
 
-    alignment1_dict = {} # raw sum
-    alignment2_dict = {} # stem sum
+    center = N
 
-    center = (N+1) / 2
     stem_index = np.argmax(stem_corr_val)
     raw_index = np.argmax(raw_corr_val)
 
-    if abs(stem_index - center) <= 2:
-        alignment2_dict[os.path.basename(stem_path)] = False
+    print('Stem index - center = {}').format(stem_index - center)
+    print('Raw index - center = {}').format(raw_index - center)
+
+    if not np.abs(stem_index - center) <= 5:
+        stem_sum_alignment_dict[os.path.basename(stem_path)] = False
     else:
         alignment2_dict[os.path.basename(stem_path)] = True
-
-    if abs(raw_index - center) <= 2:
-        alignment1_dict[os.path.basename(raw_path)] = False
+    if not np.abs(raw_index - center) <= 5:
+        stem_sum_alignment_dict[os.path.basename(raw_path)] = False
     else:
-        alignment1_dict[os.path.basename(raw_path)] = True
+        raw_sum_alignment_dict[os.path.basename(raw_path)] = True
 
-    print alignment1_dict, alignment2_dict
-    return alignment1_dict, alignment2_dict
-
-    # how to specifiy which raws are with associated stems? need to get this from new_multitrack i think
-    # inidividual raws align with associated stems (raw1 align stem, raw2 align stem)
-    # SKIP THESE FOR NOW
-
-    # for stem in down_stems:
-    #     for raw in down_raws:
-    #         indiv_raw_corr_val = np.correlate(raw, stem, 'full')
-
-    #     for val in indiv_raw_corr_val:
-    #         if val != 0:
-    #             return False
-    #         else:
-    #             return True
- 
-    # # individual stems align with mix (stem1 align mix, stem2 align mix)
-    # for stem in down_stems:
-    #     indiv_stem_corr_val = np.correlate(stem, mix_path, 'full')
-
-    #     for val in indiv_stem_corr_val:
-    #         if val != 0:
-    #             return False
-    #         else: 
-    #             return True
-
-    # # not sure how to test if sum of raws align with each associated stems?
-    # # sum of raws align with stem (raw1+raw2... align stem)
-    # raw_sum_stem_corr_val = np.correlate(raw_sum, stem) #wrong
-
-    # for val in raw_sum_stem_corr_val:
-    #         if val != 0:
-    #             return False
-    #         else 
-    #             return True
-
-        # # Downsampling
-    # raw_samples = {}
-    # stem_samples = {}
-
-    # for raw in raw_files:
-    #     raw_samples[raw] = downsample(raw, sr=sr)
-
-    # for stem in stem_files:
-    #     stem_samples[stem] = downsample(stem, sr=sr)
-
-    # down_mix = downsample(mix_path, sr=sr)
-
-
+    return raw_sum_alignment_dict, stem_sum_alignment_dict
