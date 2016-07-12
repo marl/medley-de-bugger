@@ -75,7 +75,7 @@ def check_audio(raw_path, stem_path, mix_path):
 
     file_list = []
     file_status = {}
-    mix_length = get_length(mix_path)
+    
 
     mix_file = [os.path.basename(mix_path)]
     stem_files = glob.glob(os.path.join(stem_path, '*.wav'))
@@ -108,7 +108,7 @@ def check_audio(raw_path, stem_path, mix_path):
     stats_status = stats_check(raw_files, stem_files, mix_path)
     file_status = fill_file_status(file_status, stats_status, 'Wrong_Stats')
 
-    length_status = length_check(raw_files, stem_files, mix_length)
+    length_status = length_check(raw_files, stem_files, mix_path)
     file_status = fill_file_status(file_status, length_status, 'Length_As_Mix')
 
     silence_status = silence_check(raw_files, stem_files, mix_path)
@@ -197,7 +197,7 @@ def stats_check(raw_files, stem_files, mix_path):
     return stats_dict
 
 
-def length_check(raw_files, stem_files, mix_length):
+def length_check(raw_files, stem_files, mix_path):
     """Use is_right_length to check if stem and raw files are the same length as mix,
     then populate length_dict with bool result associated with each file check.
 
@@ -207,8 +207,8 @@ def length_check(raw_files, stem_files, mix_length):
         Raw files contained within raw_path folder. 
     stem_files: list
         Stem files contained within stem_path folder.
-    mix_length : int
-        Number of samples in mix.
+    mix_path : str
+        Path to mix file
 
     Returns
     -------
@@ -219,18 +219,19 @@ def length_check(raw_files, stem_files, mix_length):
     """
 
     length_dict = {}
+    mix_length = get_length(mix_path)
 
     for stem in stem_files:
-        if not is_right_length(stem, mix_length):
-            length_dict[os.path.basename(stem)] = False
+        if is_right_length(stem, mix_length):
+            length_dict[os.path.basename(stem)] = True
         else:
-            length_dict[os.path.basename(stem)] = True    
+            length_dict[os.path.basename(stem)] = False    
 
     for raw in raw_files:
-        if not is_right_length(raw, mix_length):
-            length_dict[os.path.basename(raw)] = False
-        else:
+        if is_right_length(raw, mix_length):
             length_dict[os.path.basename(raw)] = True
+        else:
+            length_dict[os.path.basename(raw)] = False
 
     return length_dict
 
