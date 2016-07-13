@@ -390,6 +390,7 @@ def get_length(fpath):
         Number of samples of file.
     """
     length = sox.file_info.num_samples(fpath)
+
     return length
 
 # get duration in seconds
@@ -412,6 +413,12 @@ def is_right_length(fpath, ref_length):
     status : bool
         True if file is the correcct length.
     """
+    print "is right length path"
+    print fpath
+
+    print "is right length length"
+    print ref_length
+
     length = get_length(fpath)
     if length == ref_length:
         return True

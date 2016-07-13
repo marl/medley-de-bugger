@@ -9,8 +9,7 @@ from validation import check_audio
 from validation import create_problems
 from validation import get_dur
 import sox
-import pysox
-import librosa
+from timeit import default_timer as timer
 
 
 INST_TAXONOMY = 'taxonomy.yaml'
@@ -20,6 +19,7 @@ ICON_FILE = 'medley-icon.png'
 # file prompter-runs through each window, prompting user input
 class FilePrompt(QtGui.QDialog):
     def __init__(self, parent=None):
+
         super(FilePrompt, self).__init__(parent)
 
         self.basedir = '.'
@@ -53,7 +53,13 @@ class FilePrompt(QtGui.QDialog):
         self.next_btn.setEnabled(False)
         self.next_btn.clicked.connect(self.checkNext)
 
+        # self.loading_bar = QtGui.QProgressBar(self)
+        # self.loading_bar.setAutoFillBackground(True)
+        # self.loading_bar.setRange(0, total_time)
+
         #ACTUAL GUI LAYOUT STUFF
+        #self.verticallayout = QtGui.QVBoxLayout(self)
+
         grid = QtGui.QGridLayout()
         grid.setSpacing(10) #spaces buttons
 
@@ -69,7 +75,11 @@ class FilePrompt(QtGui.QDialog):
         grid.addWidget(self.save_btn, 4, 0)
         grid.addWidget(self.save_choice, 4, 1)
 
-        grid.addWidget(self.next_btn, 6, 2)
+        grid.addWidget(self.next_btn, 7, 2)
+
+        # grid.addWidget(self.loading_bar, 7, 0)
+
+        #self.verticallayout.addWidget(self.next_btn)
 
         self.setLayout(grid)
         self.setGeometry(300, 300, 250, 150)
@@ -111,7 +121,16 @@ class FilePrompt(QtGui.QDialog):
         self.save_choice.setText(self.save_path)
         self.nextEnabled()
 
+    # def progress(self, total_time):
+    #     self.completed = 0
+    #     if checkNext:   
+    #         while self.completed < total_time:
+    #             self.completed += (total_time / 100)
+    #             self.loading_bar.setValue(self.completed)
+
     def checkNext(self):
+        #start = timer()
+        #self.completed = 0
         if self.raw_path and self.stem_path and \
            self.mix_path and self.save_path:
 
@@ -122,8 +141,18 @@ class FilePrompt(QtGui.QDialog):
                 invalid_dialog = InvalidFiles(problems)
                 if not invalid_dialog.exec_():
                     sys.exit(-1)
+
             else:
+                # end = timer()
+                # total_time = end-start
+                # print 'run time:'
+                # print total_time
                 self.accept()
+                #return True
+        #return total_time
+
+        #return total_time
+
 
     def nextEnabled(self):
         if self.raw_path and self.stem_path and self.mix_path:
@@ -192,6 +221,7 @@ class Metadata(QtGui.QDialog):
 
     def __init__(self, mix_path):
         super(Metadata, self).__init__()
+
         self.track_name = QtGui.QLineEdit()
         self.artist = QtGui.QLineEdit()
         self.album = QtGui.QLineEdit()
@@ -227,10 +257,18 @@ class Metadata(QtGui.QDialog):
 
         self.initUI()
 
+
     def initUI(self):
+
+        self.mix_play = QtGui.QPushButton()
+        self.stem_play[i].setStyleSheet("background-color: #CD1400")
+        self.mix_play.setIcon(QtGui.QIcon(QtGui.QPixmap('red_play.png')))
+        play_func = lambda: play_mix(self.mix_path)
+        self.mix_play.clicked.connect(play_func)
 
         form = QtGui.QFormLayout()
 
+        form.addRow("Preview mix:", self.mix_play) #add row to play mix
         form.addRow("Track Name*: ", self.track_name)
         form.addRow("Artist*: ", self.artist)
         form.addRow("Album*: ", self.album)
@@ -370,7 +408,6 @@ class Stems(QtGui.QDialog):
 
     def initUI(self):
 
-        play_function_list = []
 
         for i in range(self.n_items):
             # Name of Stem #
@@ -381,7 +418,9 @@ class Stems(QtGui.QDialog):
             self.stem_play.append(QtGui.QPushButton())          
             play_function = lambda x: lambda: play_audio(self.stem_paths[x])
             self.stem_play[i].clicked.connect(play_function(i))
-            self.stem_play[i].setIcon(QtGui.QIcon(QtGui.QPixmap('play-button1.png')))
+            self.stem_play[i].setStyleSheet("background-color: #CD1400")
+            self.stem_play[i].setIcon(QtGui.QIcon(QtGui.QPixmap('red_play.png')))
+
             # combo box for inst group #
             self.stem_group.append(QtGui.QComboBox())
             self.stem_group[i].addItem("")
@@ -438,6 +477,9 @@ class Stems(QtGui.QDialog):
         self.scroll_area = QtGui.QScrollArea(self)
         self.scroll_area.setWidgetResizable(True)
 
+        #self.loading_bar = QtGui.QProgressBar(self)
+
+
         self.scroll_area_widget_contents = QtGui.QWidget()
         self.scroll_area_widget_contents.setGeometry(
             QtCore.QRect(0, 0, 380, 280))
@@ -472,6 +514,7 @@ class Stems(QtGui.QDialog):
 
         self.verticallayout.addWidget(self.scroll_area)
         self.verticallayout.addWidget(self.submit)
+        #self.verticallayout.addWidget(self.loading_bar)
 
         self.setGeometry(800, 300, 650, 250)
         self.setWindowTitle('Stem Info')
@@ -569,6 +612,7 @@ class Raw(QtGui.QDialog):
         self.n_items = len(self.raw_names)
 
         self.raw_list = []
+        self.raw_play = []
         self.raw_stem = []
         self.raw_group = []
         self.raw_inst = []
@@ -581,6 +625,13 @@ class Raw(QtGui.QDialog):
             # Name of Stem #
             self.raw_list.append(QtGui.QLabel())
             self.raw_list[i].setText(self.raw_names[i])
+            # Play button #
+            self.raw_play.append(QtGui.QPushButton())          
+            play_function = lambda x: lambda: play_audio(self.raw_paths[x])
+            self.raw_play[i].clicked.connect(play_function(i))
+            self.raw_play[i].setStyleSheet("background-color: #CD1400")
+            self.raw_play[i].setIcon(QtGui.QIcon(QtGui.QPixmap('red_play.png')))
+
             # combo box for stem #
             self.raw_stem.append(QtGui.QComboBox())
             self.raw_stem[i].addItem("")
@@ -607,6 +658,10 @@ class Raw(QtGui.QDialog):
         file_header = QtGui.QLabel()
         file_header.setText("File Name")
         file_header.setFont(font)
+
+        play_header = QtGui.QLabel()
+        play_header.setText("Play")
+        play_header.setFont(font)
 
         stem_header = QtGui.QLabel()
         stem_header.setText("Associated Stem")
@@ -656,16 +711,18 @@ class Raw(QtGui.QDialog):
         ##########################
 
         form.addWidget(file_header, 1, 0)
-        form.addWidget(stem_header, 1, 1)
-        form.addWidget(group_header, 1, 2)
-        form.addWidget(inst_header, 1, 3)
+        form.addWidget(play_header, 1, 1)
+        form.addWidget(stem_header, 1, 2)
+        form.addWidget(group_header, 1, 3)
+        form.addWidget(inst_header, 1, 4)
 
         j = 2
         for i in range(self.n_items):
             form.addWidget(self.raw_list[i], j, 0)
-            form.addWidget(self.raw_stem[i], j, 1)
-            form.addWidget(self.raw_group[i], j, 2)
-            form.addWidget(self.raw_inst[i], j, 3)
+            form.addWidget(self.raw_play[i], j, 1)
+            form.addWidget(self.raw_stem[i], j, 2)
+            form.addWidget(self.raw_group[i], j, 3)
+            form.addWidget(self.raw_inst[i], j, 4)
             j = j + 1
 
         self.verticallayout.addWidget(self.scroll_area)
@@ -877,6 +934,18 @@ def play_audio(file_path):
     tfm.trim(0, 5)
     tfm.fade(fade_in_len=0.5, fade_out_len=0.5)
     tfm.preview()
+
+
+def play_mix(file_path):
+    print file_path
+    tfm = sox.Transformer(file_path, 'tmp.wav')
+    tfm.silence()
+    tfm.trim(0, 10)
+    tfm.fade(fade_in_len=0.5, fade_out_len=0.5)
+    tfm.preview()
+
+
+
 
 
 def process_data(save_path, metadata, mix_path, stem_info, raw_info, ranking):
