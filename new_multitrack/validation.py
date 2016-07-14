@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 PROBLEMS = {
     'Silent': 'File is silent.',
     'Empty': 'Folder is empty.',
-    'Wrong_Stats': 'File format is incorrect.', 
+    'Wrong_Stats': 'File format is incorrect. All files must be 44.1k and 16bit. Mix and stem files should be stereo, raw files should be mono.', 
     'Length_As_Mix': 'File is not correct length.', 
     'Stems_Have_Raw': 'Stems are missing corresponding raw files.',  
     'Raw_Sum_Alignment': 'Raw files are not aligned with the mix.',  # sum of raws
@@ -151,6 +151,7 @@ def create_problems(file_status):
             for key in file_status[f_name]:
                 if file_status[f_name][key] is False:
                     problems.append("{} : {}".format(f_name, PROBLEMS[key]))
+    print problems
     return problems
 
 
@@ -375,7 +376,7 @@ def is_right_stats(fpath, type):
         print("Incorrect Type.")
         return False
 
-# Updated using pysox. #
+
 def get_length(fpath):
     """Calculate number of samples i.e. length of the file.
 
@@ -393,13 +394,26 @@ def get_length(fpath):
 
     return length
 
-# get duration in seconds
+
 def get_dur(fpath):
+    """Get duration of a file in seconds.
+
+    Parameters
+    ----------
+    fpath : str
+        Path to a file.
+
+    Returns
+    -------
+    dur : float
+        Length of file in seconds.
+    """
     dur = sox.file_info.duration(fpath)
     return dur
 
+
 def is_right_length(fpath, ref_length):
-    """Check if stema and raw files are the same length as the mix.
+    """Check if stem and raw files are the same length as the mix.
 
     Parameters
     ----------
@@ -413,44 +427,12 @@ def is_right_length(fpath, ref_length):
     status : bool
         True if file is the correcct length.
     """
-    print "is right length path"
-    print fpath
-
-    print "is right length length"
-    print ref_length
-
     length = get_length(fpath)
     if length == ref_length:
         return True
     else:
         return False
 
-# Mostly updated using pysox. #
-def get_file_stats(fpath):
-    """Provide frames of numerical wave data.
-
-    Parameters
-    ----------
-    fpath: str
-        Path to file.
-    fp : wave.Wave_read
-        An open wavefile object to buffer.
-    framesize : int
-        Number of frames to return per channel.
-
-    Yields
-    ------
-    frame : tuple
-        Numerical data for the wavefile as signed integers.
-        Note:
-            1. Multiple channels will be interleaved, and the length will be
-               framesize * 2.
-            2. The final frame will have length L, where
-               n_channels <= L <= framesize * 2, i.e. it will not be empty.
-    """
-    n_channels = sox.file_info.channels(fpath)
-    bytedepth = sox.file_info.bitrate(fpath)
-    sample_rate = sox.file_info.sample_rate(fpath) 
 
 # What kind of pysox thing should we use for the silence check?
 # This isn't catching everything that it should be right now. Look back at this.
@@ -542,19 +524,25 @@ def is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path):
     sr = 2000
     output_stem = tempfile.NamedTemporaryFile(suffix='.wav')  
     output_path_stem = output_stem.name 
-    stem_sum = sox.Combiner(stem_files, output_path_stem, 'concatenate') 
+    stem_sum = sox.Combiner(stem_files, output_path_stem, 'mix') 
     stem_sum.rate(2000, 'm')
     stem_sum.build()
 
     output_raw = tempfile.NamedTemporaryFile(suffix='.wav')
     output_path_raw = output_raw.name
-    raw_sum = sox.Combiner(raw_files, output_path_raw, 'concatenate')
+    raw_sum = sox.Combiner(raw_files, output_path_raw, 'mix')
     raw_sum.rate(2000, 'm')
     raw_sum.build()
 
+    output_mix = tempfile.NamedTemporaryFile(suffix='.wav')
+    output_path_mix = output_mix.name
+    mix_sum = sox.Transformer(mix_path, output_path_mix)
+    mix_sum.rate(2000, 'm')
+    mix_sum.build()
+
     y_stem, sr = librosa.load(output_path_stem, sr=sr, duration=30)
     y_raw, sr = librosa.load(output_path_raw, sr=sr, duration=30)
-    y_mix, sr = librosa.load(mix_path, sr=sr, duration=30)
+    y_mix, sr = librosa.load(output_path_mix, sr=sr, duration=30)
 
     stem_sum_corr = np.correlate(y_stem, y_mix, 'full')
     raw_sum_corr = np.correlate(y_raw, y_mix, 'full')
@@ -577,8 +565,8 @@ def is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path):
     stem_index = np.argmax(stem_corr_val)
     raw_index = np.argmax(raw_corr_val)
 
-    print('Stem index - center = {}').format(stem_index - center)
-    print('Raw index - center = {}').format(raw_index - center)
+    # print('Stem index - center = {}').format(stem_index - center)
+    # print('Raw index - center = {}').format(raw_index - center)
 
     if not np.abs(stem_index - center) <= 5:
         stem_sum_alignment_dict[os.path.basename(stem_path)] = False
@@ -590,4 +578,6 @@ def is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path):
     else:
         raw_sum_alignment_dict[os.path.basename(raw_path)] = True
 
+    print('raw alignment = {}').format(raw_sum_alignment_dict)
+    print('stem alignment = {}').format(stem_sum_alignment_dict)
     return raw_sum_alignment_dict, stem_sum_alignment_dict
