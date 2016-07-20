@@ -7,6 +7,11 @@ import numpy as np
 import tempfile
 import librosa
 import matplotlib.pyplot as plt
+import scipy.io.wavfile as wavfile
+import scipy.optimize.nnls as nnls
+import argparse
+import json
+
 
 # Dictionary that creates the invalid dialog error messages associated with error checks. #
 PROBLEMS = {
@@ -14,16 +19,17 @@ PROBLEMS = {
     'Empty': 'Folder is empty.',
     'Wrong_Stats': 'File format is incorrect. All files must be 44.1k and 16bit. Mix and stem files should be stereo, raw files should be mono.', 
     'Length_As_Mix': 'File is not correct length.', 
-    'Stems_Have_Raw': 'Stems are missing corresponding raw files.',  
-    'Raw_Sum_Alignment': 'Raw files are not aligned with the mix.',  # sum of raws
-    'Stem_Sum_Alignment': 'Stem files are not aligned with the mix.', # sum of stems
+    'Raws_In_Stems': 'Stems are missing corresponding raw files.', 
+    'Stems_In_Mix': 'Mix is mixing corresponding stem files.', 
+    'Raw_Sum_Alignment': 'Raw files are not aligned with the mix.',  
+    'Stem_Sum_Alignment': 'Stem files are not aligned with the mix.', 
+    'Raw_to_Stem_Alignment': 'The raw files associated with this stem file are not correctly aligned.',
     'Instrument_Label': 'Instruments are incorrectly labelled.',
     'Raws_Match_Stems': 'Raw files do not correspond to correct stems.',
     'Stem_Duplicates': 'Duplicate stem files exist.',
     'Raw_Duplicates': 'Duplicate raw files exist.',
     'Silent_Sections': 'File contains silent sections.',
     'Speech': 'File contains speech segments.',
-    'Stem_Present_In_Mix': 'Stems do not add up to the mix correctly.'
 }
 
 
@@ -81,7 +87,6 @@ def check_audio(raw_path, stem_path, mix_path):
     stem_files = glob.glob(os.path.join(stem_path, '*.wav'))
     raw_files = glob.glob(os.path.join(raw_path, '*.wav'))
 
-    # specifies base file instead of full file path
     new_stems = [os.path.basename(path) for path in stem_files]
     new_raws = [os.path.basename(path) for path in raw_files]
 
@@ -94,8 +99,6 @@ def check_audio(raw_path, stem_path, mix_path):
             'Wrong_Stats': None,
             'Length_As_Mix': None,
             'Stems_Have_Raw': None,
-            'Raw_Sum_Alignment': None,  # Sum of raws are not aligned with mix.
-            'Stem_Sum_Alignment': None, # Sum of stems are not aligned with mix.
             'Instrument_Label': None,
             'Raws_Match_Stems': None,
             'Stem_Duplicates': None,
@@ -104,6 +107,12 @@ def check_audio(raw_path, stem_path, mix_path):
             'Speech': None,
             'Stem_Present_In_Mix': None
         }
+
+    empty_status = empty_check(raw_path, stem_path)
+    file_status = fill_file_status(file_status, empty_status, 'Empty')
+
+    if not np.all(empty_status.values()):
+        return file_status
 
     stats_status = stats_check(raw_files, stem_files, mix_path)
     file_status = fill_file_status(file_status, stats_status, 'Wrong_Stats')
@@ -114,15 +123,75 @@ def check_audio(raw_path, stem_path, mix_path):
     silence_status = silence_check(raw_files, stem_files, mix_path)
     file_status = fill_file_status(file_status, silence_status, 'Silent')
 
-    empty_status = empty_check(raw_path, stem_path)
-    file_status = fill_file_status(file_status, empty_status, 'Empty')
+    return file_status
+
+
+def check_multitrack(raw_files, stem_files, mix_path, raw_info):
+    """Populate file_status dict with correct error check results. Send
+    this result to create_problems. This is the second check, after the raw
+    and stem information is collected.
+
+    Parameters
+    ----------
+    raw_files : str
+        List of paths to raw folder
+    stem_files : str
+        List of paths to stem folder
+    mix_path : str
+        Path to mix file.
+    raw_info: dict
+        Maps raw to stems.
+
+    Returns
+    -------
+    file_status : dict
+        Outer dictionary containing status_dict. 
+        Keys = list of files, values = status_dict contents (check : T/F).
+    """
+
+    file_list = []
+    file_status = {}
+
+    mix_file = [os.path.basename(mix_path)]
+
+    raw_names = [os.path.basename(f) for f in raw_files]
+    stem_name = [os.path.basename(f) for f in stem_files]
+
+    stem_path = os.path.dirname(stem_files[0]).split('/')[-1]
+    raw_path = os.path.dirname(raw_files[0]).split('/')[-1]
+
+    file_list = mix_file + raw_names + stem_name + [stem_path] + [raw_path]
+
+    for item in file_list:
+        file_status[item] = {
+            'Stems_In_Mix': None,
+            'Raws_In_Stems': None,
+            'Raw_Sum_Alignment': None,  # Sum of raws are not aligned with mix.
+            'Stem_Sum_Alignment': None, # Sum of stems are not aligned with mix.
+            'Raw_to_Stem_Alignment': None,
+            'Instrument_Label': None,
+            'Raws_Match_Stems': None,
+            'Stem_Duplicates': None,
+            'Raw_Duplicates': None,
+        }
 
     # Sum of raws not aligned with mix
-    raw_sum_alignment_status, stem_sum_alignment_status = is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path)
+    raw_sum_alignment_status, stem_sum_alignment_status, raw_to_stem_alignment_status = is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path, raw_info)
     file_status = fill_file_status(file_status, raw_sum_alignment_status, 'Raw_Sum_Alignment')
 
-    raw_sum_alignment_status, stem_sum_alignment_status = is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path)
+    # Sum of stems aligned with mix
+    raw_sum_alignment_status, stem_sum_alignment_status, raw_to_stem_alignment_status = is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path, raw_info)
     file_status = fill_file_status(file_status, stem_sum_alignment_status, 'Stem_Sum_Alignment')
+
+    # individual raws aligned with stems
+    raw_sum_alignment_status, stem_sum_alignment_status, raw_to_stem_alignment_status = is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path, raw_info)
+    file_status = fill_file_status(file_status, raw_to_stem_alignment_status, 'Raw_to_Stem_Alignment')
+
+    raw_inclusion_status, stem_inclusion_status = is_included(stem_files, raw_files, stem_path, mix_path, raw_info)
+    file_status = fill_file_status(file_status, raw_inclusion_status, 'Raws_In_Stems')
+
+    raw_inclusion_status, stem_inclusion_status = is_included(stem_files, raw_files, stem_path, mix_path, raw_info)
+    file_status = fill_file_status(file_status, stem_inclusion_status, 'Stems in Mix')
 
     # print(json.dumps(file_status, sort_keys=False, indent=4)) for pretty print checks
     return file_status
@@ -151,7 +220,6 @@ def create_problems(file_status):
             for key in file_status[f_name]:
                 if file_status[f_name][key] is False:
                     problems.append("{} : {}".format(f_name, PROBLEMS[key]))
-    print problems
     return problems
 
 
@@ -261,7 +329,7 @@ def silence_check(raw_files, stem_files, mix_path):
     silence_dict = {}
 
     for stem in stem_files:
-        if is_silence(stem):
+        if is_silence(stem): 
             silence_dict[os.path.basename(stem)] = False
         else:
             silence_dict[os.path.basename(stem)] = True
@@ -394,22 +462,22 @@ def get_length(fpath):
 
     return length
 
+# To be used in new_multitrack excerpt check
+# def get_dur(fpath):
+#     """Get duration of a file in seconds.
 
-def get_dur(fpath):
-    """Get duration of a file in seconds.
+#     Parameters
+#     ----------
+#     fpath : str
+#         Path to a file.
 
-    Parameters
-    ----------
-    fpath : str
-        Path to a file.
-
-    Returns
-    -------
-    dur : float
-        Length of file in seconds.
-    """
-    dur = sox.file_info.duration(fpath)
-    return dur
+#     Returns
+#     -------
+#     dur : float
+#         Length of file in seconds.
+#     """
+#     dur = sox.file_info.duration(fpath)
+#     return dur
 
 
 def is_right_length(fpath, ref_length):
@@ -434,8 +502,6 @@ def is_right_length(fpath, ref_length):
         return False
 
 
-# What kind of pysox thing should we use for the silence check?
-# This isn't catching everything that it should be right now. Look back at this.
 def is_silence(fpath, threshold=16, framesize=None): 
     """Check if a wave file is 'silent', i.e. all values are smaller than a
     given threshold.
@@ -452,52 +518,71 @@ def is_silence(fpath, threshold=16, framesize=None):
     Returns
     -------
     status : bool
-        True if the file all values are less than the given threshold.
+        True if values are less than the given threshold (i.e. if the file is silent)
     """
-    # hold to fix with sox
-    # fp = wave.open(fpath, 'rb')
-    # float_s = sox.file_info.sample_rate(fpath)
-    # fs = int(float_s)
-    # framesize = fs if framesize is None else framesize
-    # for frame in frame_buffer(fpath, fp, framesize): 
-    #     if max([abs(min(frame)), max(frame)]) >= threshold:
-    #         return False
-    return False
+    return sox.file_info.silent(fpath)
 
 
-def downsample(fpath, sr=2000): 
-    """Downsample wav files to ease cross-correlation process.
+def alignment_helper(file_list, target_path):
+    """Downsample and perform cross-correlation on files relative
+    to a target file to test if they are correctly aligned.
 
     Parameters
     ----------
-    fpath: str
-        Path to a wavefile.
-    sr: int > 0
-        Sample rate. Default = 2000.
+    file_list : list
+        List of files (i.e. stem_files, raw_files)
+    target_path : str
+        Filepath to compare files in file_list to.
 
     Returns
     -------
-    y:  np.ndarray [shape=(n,) or (2,n)]
-        Audio time series (mono or stereo).
-    sr: int > 0
-        Sample rate.
+    status : bool
+        True if the cross_correlation values are within a threshold, demonstrating
+        that the files are correctly aligned.
     """
-    output_file = tempfile.NamedTemporaryFile(suffix='.wav')
-    output_path = output_file.name
-    tfm = sox.Transformer(fpath, output_path)
-    tfm.rate(sr, 'm')
-    tfm.build()
+    sr = 2000
+    output_handle = tempfile.NamedTemporaryFile(suffix='.wav')  
+    output_path = output_handle.name
 
-    y, sr = librosa.load(output_path, sr=sr)
+    if len(file_list) > 1: 
+        file_sum = sox.Combiner(file_list, output_path, 'mix') 
+    else:
+        file_sum = sox.Transformer(file_list[0], output_path)
 
-    return y, sr
+    file_sum.rate(sr,'m')
+    file_sum.build()
+
+    target_handle = tempfile.NamedTemporaryFile(suffix='.wav')
+    target_handle_path = target_handle.name
+    target_sum = sox.Transformer(target_path, target_handle_path)
+    target_sum.rate(sr, 'm')
+    target_sum.build()
+
+    y_files, sr = librosa.load(output_path, sr=sr, duration=30)
+    y_target, sr = librosa.load(target_handle_path, sr=sr, duration=30)
+
+    correlation = np.correlate(y_files, y_target, 'full')
+
+    N = len(y_target)
+    a = np.arange(1, N+1)
+    a_rev = np.arange(1, N)
+    b = a_rev[ : :-1]  
+    c = np.concatenate((a, b))
+    c = c.astype(float)
+
+    correlation = np.abs(correlation) / c
+    center = N
+    corr_index = np.argmax(correlation)
 
 
-# So far this only works on the sum of raw and sum of stems compared to the mix. 
-# This also includes the check that feeds into fill file status.
-def is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path): 
-    """Test if the sum of the raw files and the sum of the stem files are correctly
-    aligned with the mix file. Includes check to populate alignment dicts with associated bools.
+    if np.abs(corr_index - center) > 5:
+        return False
+    else:
+        return True
+
+
+def is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path, raw_info): 
+    """Populate alignment dicts with associated bools.
 
     Parameters
     ----------
@@ -511,6 +596,9 @@ def is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path):
         Path to stem file folder.
     mix_path : str
         Path to mix file.
+    raw_info: dict
+        Dictionary containing all information associated with each raw track.
+        Includes path, instrument, and stem that it is mapped to.
 
     Returns
     -------
@@ -520,64 +608,152 @@ def is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path):
     stem_sum_alignment_dict: dict
         Contains bool associated with stem folder after
         checking if the sum isn't aligned with the mix.
+    raw_to_stems_dict: dict
+        Contains bool associated with each stem if the
+        mapped raws are not aligned.
     """
-    sr = 2000
-    output_stem = tempfile.NamedTemporaryFile(suffix='.wav')  
-    output_path_stem = output_stem.name 
-    stem_sum = sox.Combiner(stem_files, output_path_stem, 'mix') 
-    stem_sum.rate(2000, 'm')
-    stem_sum.build()
 
-    output_raw = tempfile.NamedTemporaryFile(suffix='.wav')
-    output_path_raw = output_raw.name
-    raw_sum = sox.Combiner(raw_files, output_path_raw, 'mix')
-    raw_sum.rate(2000, 'm')
-    raw_sum.build()
+    raw_sum_alignment_dict = {} # Raws aligned with mix
+    stem_sum_alignment_dict = {} # Stems aligned with mix
+    raw_to_stems_dict = {} # Raws aligned with stems
 
-    output_mix = tempfile.NamedTemporaryFile(suffix='.wav')
-    output_path_mix = output_mix.name
-    mix_sum = sox.Transformer(mix_path, output_path_mix)
-    mix_sum.rate(2000, 'm')
-    mix_sum.build()
+    stem_sum_alignment_dict[os.path.basename(stem_path)] = alignment_helper(stem_files, mix_path)
+    raw_sum_alignment_dict[os.path.basename(raw_path)] = alignment_helper(raw_files, mix_path)
 
-    y_stem, sr = librosa.load(output_path_stem, sr=sr, duration=30)
-    y_raw, sr = librosa.load(output_path_raw, sr=sr, duration=30)
-    y_mix, sr = librosa.load(output_path_mix, sr=sr, duration=30)
+    raw_to_stems_dict = {}
+    for stem in stem_files:
+        stem_raws = [v['path'] for k, v in raw_info.items() if v['stem'] == os.path.basename(stem)]
+        raw_to_stems_dict[os.path.basename(stem)] = alignment_helper(stem_raws, stem)
 
-    stem_sum_corr = np.correlate(y_stem, y_mix, 'full')
-    raw_sum_corr = np.correlate(y_raw, y_mix, 'full')
+    return raw_sum_alignment_dict, stem_sum_alignment_dict, raw_to_stems_dict
 
-    N = len(y_mix)
-    a = np.arange(1, N+1)
-    a_rev = np.arange(1, N)
-    b = a_rev[ : :-1]  
-    c = np.concatenate((a, b))
-    c = c.astype(float)
 
-    stem_corr_val = np.abs(stem_sum_corr) / c
-    raw_corr_val = np.abs(raw_sum_corr) / c
+def loadmono(filename, is_mono=False):
+    """Check if stem and raw files are the same length as the mix.
 
-    raw_sum_alignment_dict = {} # raw sum dict
-    stem_sum_alignment_dict = {} # stem sum dict
+    Parameters
+    ----------
+    filename : str
+        Path to a file.
+    is_mono: bool
+        True if input file is mono. Default=False.
 
-    center = N
+    Returns
+    -------
+    w : np.array
+        Audio file converted to mono.
+    """
+    _, w = wavfile.read(filename)
+    if not is_mono:
+        w = np.abs(w.sum(axis=1))
+    return w
 
-    stem_index = np.argmax(stem_corr_val)
-    raw_index = np.argmax(raw_corr_val)
 
-    # print('Stem index - center = {}').format(stem_index - center)
-    # print('Raw index - center = {}').format(raw_index - center)
+def get_coeffs(file_list, target_path, is_mono):
+    """Calculate weighted mixing coefficients.
 
-    if not np.abs(stem_index - center) <= 5:
-        stem_sum_alignment_dict[os.path.basename(stem_path)] = False
+    Parameters
+    ----------
+    file_list : list
+        List of files to calculate coefficients of.
+    target_path: str
+        Path to file that the list will be tested against.
+    is_mono: bool
+        True if input file is mono. Default=False.
+
+    Returns
+    -------
+    mixing_coeffs : dict
+        Dictionary of each file and its associated mixing coefficient
+        relative to target path.
+    """
+
+    target_audio = loadmono(target_path)
+
+    full_audio = np.vstack(
+        [loadmono(f, is_mono=is_mono) for f in file_list]
+    )
+
+    coeffs, _ = nnls(full_audio.T, target_audio.T)
+
+    base_keys = [os.path.basename(s) for s in file_list]
+
+    mixing_coeffs = { 
+        i : float(c) for i, c in zip(base_keys, coeffs)
+    }
+
+    return mixing_coeffs
+
+
+def is_included(stem_files, raw_files, stem_path, mix_path, raw_info):
+    """Test to see if each file is actually included in its overhead file, i.e.
+    stems are present in mix, raws are present in stems. Also populates inclusion
+    dicts with associated bools.
+
+    Parameters
+    ----------
+    stem_files: list
+        Stem files contained within stem_path folder.
+    raw_files : list
+        Raw files contained within raw_path folder. 
+    stem_path: str
+        Path to stem file folder.
+    mix_path : str
+        Path to mix file.
+    raw_info: dict
+        Dictionary containing all information associated with each raw track.
+        Includes path, instrument, and stem that it is mapped to.
+
+    Returns
+    -------
+    raw_inclusion_dict: dict
+        Contains bool associated with raws after
+        checking if file is present in associated stem.
+    stem_inclusion_dict: dict
+        Contains bool associated with stems after
+        checking if file is present in mix.
+
+    """
+
+    raw_inclusion_dict = {}
+    stem_inclusion_dict = {}
+
+    # Stems in mix
+    stem_coeffs = get_coeffs(stem_files, mix_path, False)
+    for k, v in stem_coeffs.items():
+        stem_inclusion_dict[k] = check_weight(v)
+
+    # Raws in stems
+    for stem in stem_files:
+        stem_inclusion = [v['path'] for k, v in raw_info.items() if v['stem'] == os.path.basename(stem)]
+        raw_coeffs = get_coeffs(stem_inclusion, stem, True)
+        for k, v in raw_coeffs.items():
+            raw_inclusion_dict[k] = check_weight(v)
+
+    return raw_inclusion_dict, stem_inclusion_dict
+
+
+def check_weight(val):
+    """Check if inclusion weight is below threshold.
+
+    Parameters
+    ----------
+    val : float
+        Weighted mixing coefficient.
+
+    Returns
+    -------
+    status : bool
+        True if mixing weight is above threshold.
+    """
+    if val < 0.001:
+        return False
     else:
-        stem_sum_alignment_dict[os.path.basename(stem_path)] = True
+        return True
 
-    if not np.abs(raw_index - center) <= 5:
-        raw_sum_alignment_dict[os.path.basename(raw_path)] = False
-    else:
-        raw_sum_alignment_dict[os.path.basename(raw_path)] = True
 
-    print('raw alignment = {}').format(raw_sum_alignment_dict)
-    print('stem alignment = {}').format(stem_sum_alignment_dict)
-    return raw_sum_alignment_dict, stem_sum_alignment_dict
+
+
+
+
+

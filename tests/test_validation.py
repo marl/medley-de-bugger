@@ -11,54 +11,7 @@ TestCase.maxDiff = None
 def relpath(f):
     return os.path.join(os.path.dirname(__file__), f)
 
-
-
-#test inputs here with our files
-# VALID_MIX = relpath('data/Phoenix_ScotchMorris/Phoenix_ScotchMorris_MIX.wav')
-
-# VALID_RAW = relpath('data/Phoenix_ScotchMorris/Phoenix_ScotchMorris_RAW')
-# VALID_STEMS = relpath('data/Phoenix_ScotchMorris/Phoenix_ScotchMorris_STEMS')
-
-# WRONG_LENGTH_MIX = relpath('data/Phoenix_ScotchMorris/Piano_L.R.wav')
-
-# EMPTY_STEMS = relpath('data/Phoenix_ScotchMorris/Empty_Test_STEMS')
-# EMPTY_RAW = relpath('data/Phoenix_ScotchMorris/Empty_Test_RAW')
-
-# MISALIGNED_RAW = relpath('data/Phoenix_ScotchMorris_Alignment/Phoenix_ScotchMorris_RAW')
-# MISALIGNED_STEMS = relpath('data/Phoenix_ScotchMorris_Alignment/Phoenix_ScotchMorris_STEMS')
-
-# MISALIGNED_STEM1 = relpath('data/Phoenix_ScotchMorris_Alignment/Phoenix_ScotchMorris_STEMS/Phoenix_ScotchMorris_STEM_03_AW.wav')
-# MISALIGNED_STEM2 = relpath('data/Phoenix_ScotchMorris_Alignment/Phoenix_ScotchMorris_STEMS/Phoenix_ScotchMorris_STEM_01_AW.wav')
-
-# MISALIGNED_STEMS_LIST = [MISALIGNED_STEM1, MISALIGNED_STEM2]
-
-# RAW_INPUT1 = relpath('data/Phoenix_ScotchMorris/Phoenix_ScotchMorris_RAW/Phoenix_ScotchMorris_RAW_01_01.wav')
-# RAW_INPUT2 = relpath('data/Phoenix_ScotchMorris/Phoenix_ScotchMorris_RAW/Phoenix_ScotchMorris_RAW_02_01.wav')
-# RAW_INPUT3 = relpath('data/Phoenix_ScotchMorris/Phoenix_ScotchMorris_RAW/Phoenix_ScotchMorris_RAW_03_01.wav')
-# RAW_INPUT4_1 = relpath('data/Phoenix_ScotchMorris/Phoenix_ScotchMorris_RAW/Phoenix_ScotchMorris_RAW_04_01.wav')
-# RAW_INPUT4_2 = relpath('data/Phoenix_ScotchMorris/Phoenix_ScotchMorris_RAW/Phoenix_ScotchMorris_RAW_04_02.wav')
-
-# STEM_INPUT1 = relpath('data/Phoenix_ScotchMorris/Phoenix_ScotchMorris_STEMS/Phoenix_ScotchMorris_STEM_01.wav')
-# STEM_INPUT2 = relpath('data/Phoenix_ScotchMorris/Phoenix_ScotchMorris_STEMS/Phoenix_ScotchMorris_STEM_02.wav')
-# STEM_INPUT3 = relpath('data/Phoenix_ScotchMorris/Phoenix_ScotchMorris_STEMS/Phoenix_ScotchMorris_STEM_03.wav')
-# STEM_INPUT4 = relpath('data/Phoenix_ScotchMorris/Phoenix_ScotchMorris_STEMS/Phoenix_ScotchMorris_STEM_04.wav')
-
-# WRONG_CHANNELS_INDIV_RAW = relpath('data/Phoenix_ScotchMorris_ChannelTest/Phoenix_ScotchMorris_RAW/stem_wrong.wav')
-# SILENT_FILE = relpath('data/Phoenix_ScotchMorris/Piano_L.R.wav')
-
-# WRONG_LENGTH = relpath('data/Phoenix_ScotchMorris/wrong_length.wav')
-# WRONG_CHANNELS_RAW = relpath('data/Phoenix_ScotchMorris_ChannelTest/Phoenix_ScotchMorris_RAW')
-# WRONG_CHANNELS_STEMS = relpath('data/Phoenix_ScotchMorris_ChannelTest/Phoenix_ScotchMorris_STEMS')
-
-# WRONG_CHANNELS_LIST = [RAW_INPUT1, RAW_INPUT2, RAW_INPUT3, RAW_INPUT4_1, RAW_INPUT4_2, WRONG_CHANNELS_INDIV_RAW]
-
-# RAW_FILES_LIST = [RAW_INPUT1, RAW_INPUT2, RAW_INPUT3, RAW_INPUT4_1, RAW_INPUT4_2]
-# STEM_FILES_LIST = [STEM_INPUT1, STEM_INPUT2, STEM_INPUT3, STEM_INPUT4]
-
-# WRONG_SR_STEM = relpath('data/Phoenix_ScotchMorris/wrong_sr.wav')
-# WRONG_BYTE_STEM = relpath('data/Phoenix_ScotchMorris/wrong_bitdepth.wav')
-
-#test inputs here with our files
+# TESTS WITH SHORTENED FILES
 VALID_MIX = relpath('data/Short_Files/Mix.wav')
 VALID_RAW = relpath('data/Short_Files/Raw')
 VALID_STEMS = relpath('data/Short_Files/Stems')
@@ -210,8 +163,7 @@ class TestEmptyCheck(unittest.TestCase):
         }
         self.assertEqual(actual, expected)
 
-# Empty helper function #
-
+# Empty helper function 
 class TestHasWavsCheck(unittest.TestCase):
 
     def test_valid_has_wavs(self):
@@ -252,25 +204,21 @@ class TestSilenceCheck(unittest.TestCase):
         }
         self.assertEqual(actual, expected)
 
-    # def test_invalid_silence(self):
-    #     raw_files = RAW_FILES_LIST
-    #     stem_files = STEM_FILES_LIST
-    #     mix_path = VALID_MIX
 
-    #     actual = validation.silence_check(raw_files, stem_files, mix_path)
-    #     expected = {
-    #         'Raw1.wav': True,
-    #         'Raw2.wav': True,
-    #         'Raw3.wav': True,
-    #         'Raw4.wav': True,
-    #         'Raw4_2.wav': True,
-    #         'Stem1.wav': True,
-    #         'Stem2.wav': True,
-    #         'Stem3.wav': True,
-    #         'Stem4.wav': True,
-    #         'Mix.wav': True,
-    #     }
-    #     self.assertEqual(actual, expected)
+class TestIsSilence(unittest.TestCase):
+
+    def test_is_silence_valid(self):
+        silent_file = SILENT_FILE
+        actual = validation.is_silence(silent_file)
+        expected = True
+        self.assertEqual(actual, expected)
+
+    def test_is_silence_invalid(self):
+        silent_file = RAW_INPUT1
+        actual = validation.is_silence(silent_file)
+        expected = False
+        self.assertEqual(actual, expected)
+
 
 class TestStatsCheck(unittest.TestCase):
 
@@ -315,7 +263,7 @@ class TestStatsCheck(unittest.TestCase):
         }
         self.assertEqual(actual, expected)
 
-# is_right_stats(fpath, type) (type = stem, raw, mix)
+
 class TestStatsHelper(unittest.TestCase):
 
     def test_valid_stats_helper_raw(self):
@@ -379,34 +327,45 @@ class TestGetDur(unittest.TestCase):
         self.assertNotEqual(actual, expected)
 
 
-class TestIsAlignedCheck(unittest.TestCase):
+class TestAnalyzeMix(unittest.TestCase):
 
-    def test_valid_alignment(self):
+    def test_get_coeffs(self):
         raw_files = RAW_FILES_LIST
         stem_files = STEM_FILES_LIST
-        raw_path = VALID_RAW
-        stem_path = VALID_STEMS
         mix_path = VALID_MIX
 
-        actual = validation.is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path)
-        expected = {'Raw': True}, {'Stems': True}
-        
+        actual = validation.get_coeffs(raw_files, stem_files, mix_path)
+        expected = ({'Stem4.wav': 0.3, 'Stem2.wav': 0.3914442544097783, 'Stem3.wav': 0.5948751700839973, 'Stem1.wav': 0.33008826259331703}, {'Raw2.wav': 0.0, 'Raw3.wav': 0.0, 'Raw4.wav': 0.15583858172757337, 'Raw4_2.wav': 0.0, 'Raw1.wav': 0.0})
+        self.assertEqual(actual, expected) #0.6847636702791934
+
+
+class TestAlignmentHelper(unittest.TestCase):
+
+    def test_alignment_helper(self):
+        raw_files = [RAW_INPUT1]
+        target_path = STEM_INPUT1
+
+        actual = validation.alignment_helper(raw_files, target_path)
+        expected = True
         self.assertEqual(actual, expected)
 
-    def test_invalid_alignment(self):
-        raw_files = RAW_FILES_LIST
-        stem_files = MISALIGNED_STEMS_LIST
-        raw_path = MISALIGNED_RAW
-        stem_path = MISALIGNED_STEMS
-        mix_path = VALID_MIX
+    def test_alignment_helper_invalid(self):
+        raw_files = [RAW_INPUT4_2, RAW_INPUT4_1]
+        target_path = STEM_INPUT4
 
-        actual = validation.is_aligned(raw_files, stem_files, raw_path, stem_path, mix_path)
-        expected = {'Raw': True}, {'MisalignedStems': False}
-        
+        actual = validation.alignment_helper(raw_files, target_path)
+        expected = True
+        self.assertEqual(actual, expected)
+
+    def test_helper(self):
+        stem_files = STEM_FILES_LIST
+        target_path = VALID_MIX
+
+        actual = validation.alignment_helper(stem_files, target_path)
+        expected = True
         self.assertEqual(actual, expected)
 
 
-# Works - need to make sure that empty check is before other checks because pysox can't run on empty #
 class TestCreateProblems(unittest.TestCase):
 
     def test_empty_create_problems(self):
@@ -421,418 +380,17 @@ class TestCreateProblems(unittest.TestCase):
         self.assertEqual(actual, expected)
 
     def test_error_create_problems(self):
-        raw_path = VALID_RAW
-        stem_path = MISALIGNED_STEMS
+        raw_files = RAW_FILES_LIST
+        stem_files = MISALIGNED_STEMS_LIST
         mix_path = VALID_MIX
-        file_status = validation.check_audio(raw_path, stem_path, mix_path)
+        raw_info = {'Raw2.wav': {'path': '/Users/juliawilkins/Desktop/medleydb_work/medleydb_app/tests/data/Short_Files/Raw/Raw2.wav', 'inst': 'darbuka', 'stem': 'Stem3Misaligned.wav'}, 'Raw3.wav': {'path': '/Users/juliawilkins/Desktop/medleydb_work/medleydb_app/tests/data/Short_Files/Raw/Raw3.wav', 'inst': 'distorted electric guitar', 'stem': 'Stem1Misaligned.wav'}, 'Raw4.wav': {'path': '/Users/juliawilkins/Desktop/medleydb_work/medleydb_app/tests/data/Short_Files/Raw/Raw4.wav', 'inst': 'darbuka', 'stem': 'Stem3Misaligned.wav'}, 'Raw4_2.wav': {'path': '/Users/juliawilkins/Desktop/medleydb_work/medleydb_app/tests/data/Short_Files/Raw/Raw4_2.wav', 'inst': 'darbuka', 'stem': 'Stem3Misaligned.wav'}, 'Raw1.wav': {'path': '/Users/juliawilkins/Desktop/medleydb_work/medleydb_app/tests/data/Short_Files/Raw/Raw1.wav', 'inst': 'distorted electric guitar', 'stem': 'Stem1Misaligned.wav'}}
+
+        file_status = validation.check_multitrack(raw_files, stem_files, mix_path, raw_info)
 
         actual = validation.create_problems(file_status)
-        expected = ['MisalignedStems : Stem files are not aligned with the mix.']
+        expected = ['MisalignedStems : Stem files are not aligned with the mix.', 'Stem1Misaligned.wav : The raw files associated with this stem file are not correctly aligned.', 'Stem3Misaligned.wav : The raw files associated with this stem file are not correctly aligned.']
         
         self.assertEqual(actual, expected)
 
 
-# Slow test... leave commented.
-# class TestCheckAudio(unittest.TestCase):
-
-#     def test_valid_check_audio(self):
-#         raw_path = VALID_RAW
-#         stem_path = VALID_STEMS
-#         mix_path = VALID_MIX
-
-#         actual = validation.check_audio(raw_path, stem_path, mix_path)
-#         expected = {'Stem1.wav': 
-#         {
-#             'Silent': True, 
-#             'Length_As_Mix': True, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Stem2.wav': 
-#         {
-#             'Silent': True, 
-#             'Length_As_Mix': True, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Stem3.wav': 
-#         {
-#             'Silent': True, 
-#             'Length_As_Mix': True, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Stem4.wav': 
-#         {
-#             'Silent': True, 
-#             'Length_As_Mix': True, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Raw1.wav':
-#         {
-#             'Silent': True, 
-#             'Length_As_Mix': True, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Raw2.wav': 
-#         {
-#             'Silent': True, 
-#             'Length_As_Mix': True, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Raw3.wav': 
-#         {
-#             'Silent': True, 
-#             'Length_As_Mix': True, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Raw4.wav': 
-#         {
-#             'Silent': True, 
-#             'Length_As_Mix': True, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Raw4_2.wav': 
-#         {
-#             'Silent': True, 
-#             'Length_As_Mix': True, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Mix.wav': 
-#         {
-#             'Silent': True, 
-#             'Length_As_Mix': None, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Raw': 
-#         {
-#             'Silent': None, 
-#             'Length_As_Mix': None, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': None, 
-#             'Empty': True, 
-#             'Raw_Sum_Alignment': True, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Stems': 
-#         {
-#             'Silent': None, 
-#             'Length_As_Mix': None, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': None, 
-#             'Empty': True, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': True, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }}
-#         self.assertEqual(actual, expected)
-
-#def test_invalid_check_audio(self):
-#         raw_path = VALID_RAW
-#         stem_path = VALID_STEMS
-#         mix_path = VALID_MIX
-
-#         actual = validation.check_audio(raw_path, stem_path, mix_path)
-#         expected = {'Stem1.wav': 
-#         {
-#             'Silent': False, 
-#             'Length_As_Mix': True, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Stem2.wav': 
-#         {
-#             'Silent': True, 
-#             'Length_As_Mix': True, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Stem3.wav': 
-#         {
-#             'Silent': True, 
-#             'Length_As_Mix': True, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Stem4.wav': 
-#         {
-#             'Silent': True, 
-#             'Length_As_Mix': True, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Raw1.wav':
-#         {
-#             'Silent': True, 
-#             'Length_As_Mix': True, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Raw2.wav': 
-#         {
-#             'Silent': True, 
-#             'Length_As_Mix': True, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Raw3.wav': 
-#         {
-#             'Silent': True, 
-#             'Length_As_Mix': True, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Raw4.wav': 
-#         {
-#             'Silent': True, 
-#             'Length_As_Mix': True, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Raw4_2.wav': 
-#         {
-#             'Silent': True, 
-#             'Length_As_Mix': True, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Mix.wav': 
-#         {
-#             'Silent': True, 
-#             'Length_As_Mix': None, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': True, 
-#             'Empty': None, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Raw': 
-#         {
-#             'Silent': None, 
-#             'Length_As_Mix': None, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': None, 
-#             'Empty': True, 
-#             'Raw_Sum_Alignment': True, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': None, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }, 'Stems': 
-#         {
-#             'Silent': None, 
-#             'Length_As_Mix': None, 
-#             'Speech': None, 
-#             'Stem_Duplicates': None, 
-#             'Wrong_Stats': None, 
-#             'Empty': True, 
-#             'Raw_Sum_Alignment': None, 
-#             'Instrument_Label': None, 
-#             'Stem_Sum_Alignment': True, 
-#             'Silent_Sections': None, 
-#             'Stems_Have_Raw': None, 
-#             'Stem_Present_In_Mix': None, 
-#             'Raw_Duplicates': None, 
-#             'Raws_Match_Stems': None
-#         }}
-#         self.assertEqual(actual, expected)
+# We also need a check audio/check multitrack test...TBD it will be slow.ste
