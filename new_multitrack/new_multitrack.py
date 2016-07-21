@@ -5,13 +5,11 @@ import yaml
 from PyQt4 import QtGui, QtCore
 from functools import partial
 import multitrack_utils as mu
-from validation import get_length
+from validation import get_dur
 from validation import check_audio
 from validation import create_problems
 from validation import check_multitrack
 import sox
-import json
-
 
 INST_TAXONOMY = 'taxonomy.yaml'
 ICON_FILE = 'medley-icon.png'
@@ -123,7 +121,7 @@ class FilePrompt(QtGui.QDialog):
             problems = create_problems(file_status)
 
             if len(problems) > 0:
-                invalid_dialog = InvalidFiles(problems)
+                invalid_dialog = InvalidFiles(problems, self)
                 if not invalid_dialog.exec_():
                     sys.exit(-1)
 
@@ -131,6 +129,7 @@ class FilePrompt(QtGui.QDialog):
                 self.accept()
 
     def nextEnabled(self):
+
         if self.raw_path and self.stem_path and self.mix_path:
             self.next_btn.setEnabled(True)
 
@@ -338,7 +337,7 @@ class Metadata(QtGui.QDialog):
             self.complete = False
 
         ### Excerpt check ###
-        dur = get_length(self.mix_path) 
+        dur = get_dur(self.mix_path) 
         if self.excerpt.currentText() == 'yes':
             if dur > 30.0:
                 alert = QtGui.QMessageBox()
@@ -626,8 +625,8 @@ class Raw(QtGui.QDialog):
         self.raw_stem = []
         self.raw_group = []
         self.raw_inst = []
-
         self.initUI()
+
 
     def initUI(self):
 

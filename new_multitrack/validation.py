@@ -6,7 +6,6 @@ import sox
 import numpy as np
 import tempfile
 import librosa
-import matplotlib.pyplot as plt
 import scipy.io.wavfile as wavfile
 import scipy.optimize.nnls as nnls
 import argparse
@@ -19,7 +18,7 @@ PROBLEMS = {
     'Empty': 'Folder is empty.',
     'Wrong_Stats': 'File format is incorrect. All files must be 44.1k and 16bit. Mix and stem files should be stereo, raw files should be mono.', 
     'Length_As_Mix': 'File is not correct length.', 
-    'Raws_In_Stems': 'Stems are missing corresponding raw files.', 
+    'Raws_In_Stems': 'This raw file was not found in its corresponding stem.', 
     'Stems_In_Mix': 'Mix is mixing corresponding stem files.', 
     'Raw_Sum_Alignment': 'Raw files are not aligned with the mix.',  
     'Stem_Sum_Alignment': 'Stem files are not aligned with the mix.', 
@@ -193,7 +192,6 @@ def check_multitrack(raw_files, stem_files, mix_path, raw_info):
     raw_inclusion_status, stem_inclusion_status = is_included(stem_files, raw_files, stem_path, mix_path, raw_info)
     file_status = fill_file_status(file_status, stem_inclusion_status, 'Stems in Mix')
 
-    # print(json.dumps(file_status, sort_keys=False, indent=4)) for pretty print checks
     return file_status
 
 
@@ -441,7 +439,6 @@ def is_right_stats(fpath, type):
         else:
             return False
     else:
-        print("Incorrect Type.")
         return False
 
 
@@ -462,22 +459,22 @@ def get_length(fpath):
 
     return length
 
-# To be used in new_multitrack excerpt check
-# def get_dur(fpath):
-#     """Get duration of a file in seconds.
 
-#     Parameters
-#     ----------
-#     fpath : str
-#         Path to a file.
+def get_dur(fpath):
+    """Get duration of a file in seconds.
 
-#     Returns
-#     -------
-#     dur : float
-#         Length of file in seconds.
-#     """
-#     dur = sox.file_info.duration(fpath)
-#     return dur
+    Parameters
+    ----------
+    fpath : str
+        Path to a file.
+
+    Returns
+    -------
+    dur : float
+        Length of file in seconds.
+    """
+    dur = sox.file_info.duration(fpath)
+    return dur
 
 
 def is_right_length(fpath, ref_length):
@@ -540,7 +537,7 @@ def alignment_helper(file_list, target_path):
         True if the cross_correlation values are within a threshold, demonstrating
         that the files are correctly aligned.
     """
-    sr = 2000
+    sr = 1000
     output_handle = tempfile.NamedTemporaryFile(suffix='.wav')  
     output_path = output_handle.name
 
@@ -558,8 +555,10 @@ def alignment_helper(file_list, target_path):
     target_sum.rate(sr, 'm')
     target_sum.build()
 
-    y_files, sr = librosa.load(output_path, sr=sr, duration=30)
-    y_target, sr = librosa.load(target_handle_path, sr=sr, duration=30)
+    dur = get_length(target_path)
+    offset = (dur/44100.0) / 2.0
+    y_files, sr = librosa.load(output_path, sr=sr, offset = offset, duration=30.0)
+    y_target, sr = librosa.load(target_handle_path, sr=sr, offset = offset, duration=30.0)
 
     correlation = np.correlate(y_files, y_target, 'full')
 
@@ -573,7 +572,6 @@ def alignment_helper(file_list, target_path):
     correlation = np.abs(correlation) / c
     center = N
     corr_index = np.argmax(correlation)
-
 
     if np.abs(corr_index - center) > 5:
         return False
@@ -646,6 +644,8 @@ def loadmono(filename, is_mono=False):
     _, w = wavfile.read(filename)
     if not is_mono:
         w = np.abs(w.sum(axis=1))
+    else:
+        w = np.abs(w)
     return w
 
 
@@ -746,7 +746,7 @@ def check_weight(val):
     status : bool
         True if mixing weight is above threshold.
     """
-    if val < 0.001:
+    if val < 0.01:
         return False
     else:
         return True
