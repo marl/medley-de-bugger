@@ -5,9 +5,9 @@ import yaml
 from PyQt4 import QtGui, QtCore
 from functools import partial
 import multitrack_utils as mu
+from validation import get_length
 from validation import check_audio
 from validation import create_problems
-#from validation import get_dur
 from validation import check_multitrack
 import sox
 import json
@@ -15,6 +15,7 @@ import json
 
 INST_TAXONOMY = 'taxonomy.yaml'
 ICON_FILE = 'medley-icon.png'
+
 
 class FilePrompt(QtGui.QDialog):
     def __init__(self, parent=None):
@@ -52,7 +53,6 @@ class FilePrompt(QtGui.QDialog):
         self.next_btn.setEnabled(False)
         self.next_btn.clicked.connect(self.checkNext)
 
-
         grid = QtGui.QGridLayout()
         grid.setSpacing(10) 
 
@@ -79,42 +79,47 @@ class FilePrompt(QtGui.QDialog):
         self.show()
 
     def center(self):
-        frameGm = self.frameGeometry()
-        screen = QtGui.QApplication.desktop().screenNumber(QtGui.QApplication.desktop().cursor().pos())
-        centerPoint = QtGui.QApplication.desktop().screenGeometry(screen).center()
-        frameGm.moveCenter(centerPoint)
-        self.move(frameGm.topLeft())
+        frame_gm = self.frameGeometry()
+        screen = QtGui.QApplication.desktop().screenNumber(
+            QtGui.QApplication.desktop().cursor().pos())
+        center_point = QtGui.QApplication.desktop().screenGeometry(
+            screen).center()
+        frame_gm.moveCenter(center_point)
+        self.move(frame_gm.topLeft())
 
     def findMix(self):
-        self.mix_path = str(QtGui.QFileDialog.getOpenFileName(self,
-                            "Select the Mix..,", '.', "Audio Files (*.wav)")) #???
-        self.mix_choice.setText(self.mix_path) #displays long path name that goes off screen and is annoying
+        self.mix_path = str(QtGui.QFileDialog.getOpenFileName(
+            self, "Select the Mix..,", '.', "Audio Files (*.wav)"))
+
+        self.mix_choice.setText("...{}".format(self.mix_path[-30:]))
         self.basedir = os.path.dirname(self.mix_path)
         self.nextEnabled()
 
     def findStems(self):
-        self.stem_path = str(QtGui.QFileDialog.getExistingDirectory(self,
-                             "Select the Stem directory...", self.basedir))
-        self.stem_choice.setText(self.stem_path)
+        self.stem_path = str(QtGui.QFileDialog.getExistingDirectory(
+            self, "Select the Stem directory...", self.basedir))
+        self.stem_choice.setText("...{}".format(self.stem_path[-30:]))
         self.nextEnabled()
 
     def findRaw(self):
-        self.raw_path = str(QtGui.QFileDialog.getExistingDirectory(self,
-                            "Select the raw audio directory...", self.basedir))
-        self.raw_choice.setText(self.raw_path)
+        self.raw_path = str(QtGui.QFileDialog.getExistingDirectory(
+            self, "Select the raw audio directory...", self.basedir))
+        self.raw_choice.setText("...{}".format(self.raw_path[-30:]))
         self.nextEnabled()
 
     def pickSaveDir(self):
-        self.save_path = str(QtGui.QFileDialog.getExistingDirectory(self,
-                             "Select a save location...", self.basedir))
-        self.save_choice.setText(self.save_path)
+        self.save_path = str(QtGui.QFileDialog.getExistingDirectory(
+            self, "Select a save location...", self.basedir))
+        self.save_choice.setText("...{}".format(self.save_path[-30:]))
         self.nextEnabled()
 
     def checkNext(self):
         if self.raw_path and self.stem_path and \
            self.mix_path and self.save_path:
 
-            file_status = check_audio(self.raw_path, self.stem_path, self.mix_path)
+            file_status = check_audio(
+                self.raw_path, self.stem_path, self.mix_path
+            )
             problems = create_problems(file_status)
 
             if len(problems) > 0:
@@ -125,17 +130,17 @@ class FilePrompt(QtGui.QDialog):
             else:
                 self.accept()
 
-
     def nextEnabled(self):
         if self.raw_path and self.stem_path and self.mix_path:
             self.next_btn.setEnabled(True)
 
 
 class InvalidFiles(QtGui.QDialog):
-    def __init__(self, problems):
+    def __init__(self, problems, raw_dialog):
         super(InvalidFiles, self).__init__()
         self.problems = problems
         self.initUI()
+        self.raw_dialog = raw_dialog
 
     def initUI(self):
 
@@ -159,11 +164,13 @@ class InvalidFiles(QtGui.QDialog):
 
         self.text_lines = []
 
-        for i in range(len(self.problems)):
+        n_problems = len(self.problems)
+
+        for i in range(n_problems):
             self.text_lines.append(QtGui.QLabel(self.problems[i]))
             self.text_lines[i].setText(self.problems[i])
             self.grid_layout.addWidget(self.text_lines[i])
-                
+
         self.vertical_layout.addWidget(self.scroll_area)
 
         quit_btn = QtGui.QPushButton("Quit")
@@ -172,13 +179,16 @@ class InvalidFiles(QtGui.QDialog):
         back_btn = QtGui.QPushButton("Back")
         back_btn.clicked.connect(self.accept)
 
+        continue_btn = QtGui.QPushButton("Ignore and Continue")
+        continue_btn.clicked.connect(self.accept_and_continue)
+
         #this works for fileprompt->stem_info
         #works for 'not all stems have raw'
         #does not work for raw info -> meta
 
-        self.grid_layout.addWidget(back_btn, 5, 0)
-        self.grid_layout.addWidget(quit_btn, 5, 1)
-
+        self.grid_layout.addWidget(back_btn, n_problems, 0)
+        self.grid_layout.addWidget(continue_btn, n_problems, 1)
+        self.grid_layout.addWidget(quit_btn, n_problems, 2)
 
         self.setGeometry(900, 400, 900, 400)
         self.setWindowTitle('Invalid Files')
@@ -187,12 +197,18 @@ class InvalidFiles(QtGui.QDialog):
 
         self.show()
 
+    def accept_and_continue(self):
+        self.raw_dialog.accept()
+        self.accept()
+
     def center(self):
-        frameGm = self.frameGeometry()
-        screen = QtGui.QApplication.desktop().screenNumber(QtGui.QApplication.desktop().cursor().pos())
-        centerPoint = QtGui.QApplication.desktop().screenGeometry(screen).center()
-        frameGm.moveCenter(centerPoint)
-        self.move(frameGm.topLeft())
+        frame_gm = self.frameGeometry()
+        screen = QtGui.QApplication.desktop().screenNumber(
+            QtGui.QApplication.desktop().cursor().pos())
+        center_point = QtGui.QApplication.desktop().screenGeometry(
+            screen).center()
+        frame_gm.moveCenter(center_point)
+        self.move(frame_gm.topLeft())
 
     def quit_clicked(self):
         QtCore.QCoreApplication.instance().quit()
@@ -219,7 +235,6 @@ class Metadata(QtGui.QDialog):
         self.has_bleed = QtGui.QComboBox()
         self.has_bleed.addItems(["", "yes", "no"])
 
-        
         self.genre = QtGui.QComboBox()
         self.genre.addItems(["", "Singer/Songwriter", "Rock", "Classical",
                              "Jazz", "Electronic/Fusion", "World/Folk",
@@ -234,15 +249,14 @@ class Metadata(QtGui.QDialog):
 
         self.ss_le = self.track_name.styleSheet()
         self.ss_cb = self.instrumental.styleSheet()
+        self.complete = False
 
         self.initUI()
-
 
     def initUI(self):
 
         self.mix_play = QtGui.QPushButton()
-        self.mix_play.setStyleSheet("background-color: #CD1400")
-        self.mix_play.setIcon(QtGui.QIcon(QtGui.QPixmap('red_play.png')))
+        self.mix_play.setIcon(QtGui.QIcon(QtGui.QPixmap('play.png')))
         play_func = lambda: play_mix(self.mix_path)
         self.mix_play.clicked.connect(play_func)
 
@@ -272,11 +286,19 @@ class Metadata(QtGui.QDialog):
         self.show()
 
     def center(self):
-        frameGm = self.frameGeometry()
-        screen = QtGui.QApplication.desktop().screenNumber(QtGui.QApplication.desktop().cursor().pos())
-        centerPoint = QtGui.QApplication.desktop().screenGeometry(screen).center()
-        frameGm.moveCenter(centerPoint)
-        self.move(frameGm.topLeft())
+        frame_gm = self.frameGeometry()
+        screen = QtGui.QApplication.desktop().screenNumber(
+            QtGui.QApplication.desktop().cursor().pos())
+        center_point = QtGui.QApplication.desktop().screenGeometry(
+            screen).center()
+        frame_gm.moveCenter(center_point)
+        self.move(frame_gm.topLeft())
+
+    def excerpt_go_back(self):
+        self.complete = False
+
+    def excerpt_continue(self):
+        self.complete = True
 
     def checkSubmit(self):
 
@@ -288,76 +310,73 @@ class Metadata(QtGui.QDialog):
         self.genre.setStyleSheet(self.ss_cb)
         self.track_origin.setStyleSheet(self.ss_cb)
 
-        complete = True
+        self.complete = True
 
-        # AFTER THESE ARE LEFT EMPTY AND BOX IS RED->format swithces and you can't see options anymore
+        # TODO: AFTER THESE ARE LEFT EMPTY AND BOX IS RED->format swithces and
+        # you can't see options anymore
         if not self.track_name.displayText():
             self.track_name.setStyleSheet("border: 2px solid red;")
-            complete = False
+            self.complete = False
         if not self.artist.displayText():
             self.artist.setStyleSheet("border: 2px solid red;")
-            complete = False
+            self.complete = False
         if not self.instrumental.currentText():
             self.instrumental.setStyleSheet("border: 2px solid red;")
-            complete = False
-        
+            self.complete = False
+
         if not self.excerpt.currentText():
             self.excerpt.setStyleSheet("border: 2px solid red;")
-            complete = False
+            self.complete = False
         if not self.has_bleed.currentText():
             self.has_bleed.setStyleSheet("border: 2px solid red;")
-            complete = False
+            self.complete = False
         if not self.genre.currentText():
             self.genre.setStyleSheet("border: 2px solid red;")
-            complete = False
+            self.complete = False
         if not self.track_origin.currentText():
             self.track_origin.setStyleSheet("border: 2px solid red;")
-            complete = False
+            self.complete = False
 
-        # ADD EXCERPT CHECK HERE   
-        # window is popping up at the correct time, but we need to make sure buttons are doing the right thing when it does pop up
-        # fix the elses, clicking no should return  you to filled in metadata
+        ### Excerpt check ###
+        dur = get_length(self.mix_path) 
+        if self.excerpt.currentText() == 'yes':
+            if dur > 30.0:
+                alert = QtGui.QMessageBox()
+                alert.setText(
+                    "You classified this file as an excerpt, but it's pretty "
+                    "long. Are you sure it's an excerpt?"
+                )
+                
+                no_button = QtGui.QPushButton('No') # go back
+                no_button.clicked.connect(self.excerpt_go_back)
+                yes_button = QtGui.QPushButton('Yes') # continue
+                yes_button.clicked.connect(self.excerpt_continue)
 
-        # not_all_stems = NotAllStems()
-        #             if not not_all_stems.exec_():
-        #                 sys.exit(-1)
-        #             complete = False
+                alert.addButton(no_button, 1)
+                alert.addButton(yes_button, 1)
 
-        # dur = get_dur(self.mix_path) 
-        # if self.excerpt.currentText() == 'yes':
-        #     if dur < 30.0:
-        #         complete = True
-        #     else: 
-        #         complete = False 
-        #         # alert = QtGui.QMessageBox()
-        #         # alert.setText("You classified this file as an excerpt, but it's pretty long. Are you sure it's an excerpt?")
-        #         # alert.setStandardButtons(QtGui.QMessageBox.Yes | QtGui.QMessageBox.No)
-        #         # alert.setDefaultButton(QtGui.QMessageBox.No)
-        #         # alert.buttonClicked.connect(checkSubmit)
-        #         # alert.exec_()
-        #         excerpt_check_long = ExcerptCheckLong()
-        #         if not excerpt_check_long.exec_():
-        #             sys.exit(-1)
-        #         complete = True
-        # elif self.excerpt.currentText() == 'no':
-        #     if dur > 60.0:
-        #         complete = True
-        #     else:
-        #         complete = False 
-        #         # alert = QtGui.QMessageBox()
-        #         # alert.setText("You did not classify this file as an excerpt, but it's pretty short. Are you sure it's not an excerpt?")
-        #         # alert.setStandardButtons(QtGui.QMessageBox.Yes | QtGui.QMessageBox.No)
-        #         # alert.setDefaultButton(QtGui.QMessageBox.No)
-        #         #alert.buttonClicked.connect(checkSubmit)
-        #         # alert.setDefaultButton(QtGui.QMessageBox.No)
-        #         # alert.exec_()
-        #         #excerpt_check_short = ExcerptCheckShort()
-        #         if not excerpt_check_short.exec_():
-        #             sys.exit(-1)
-        #         complete = True
+                alert.exec_()
+            else:
+                self.complete = True
 
+        elif self.excerpt.currentText() == 'no':
+            if dur < 60.0:
+                alert = QtGui.QMessageBox()
+                alert.setText(
+                    "You did not classify this file as an excerpt, but it's "
+                    "pretty short. Are you sure it's a full length song?"
+                )
+                
+                no_button = QtGui.QPushButton('No') # go back
+                no_button.clicked.connect(self.excerpt_go_back)
+                yes_button = QtGui.QPushButton('Yes') # continue
+                yes_button.clicked.connect(self.excerpt_continue)
 
-        if complete:
+                alert.addButton(no_button, 1)
+                alert.addButton(yes_button, 1)
+                alert.exec_()
+
+        if self.complete:
             self.recordResponses()
             self.accept()
 
@@ -375,7 +394,6 @@ class Metadata(QtGui.QDialog):
         mdata["genre"] = str(self.genre.currentText())
         mdata["origin"] = str(self.track_origin.currentText())
         self.metadata = mdata
-
 
 
 class Stems(QtGui.QDialog):
@@ -396,11 +414,9 @@ class Stems(QtGui.QDialog):
         self.stem_melody = []
         self.stem_bass = []
 
-
         self.initUI()
 
     def initUI(self):
-
 
         for i in range(self.n_items):
             # Name of Stem #
@@ -410,8 +426,8 @@ class Stems(QtGui.QDialog):
             self.stem_play.append(QtGui.QPushButton())          
             play_function = lambda x: lambda: play_audio(self.stem_paths[x])
             self.stem_play[i].clicked.connect(play_function(i))
-            self.stem_play[i].setStyleSheet("background-color: #CD1400")
-            self.stem_play[i].setIcon(QtGui.QIcon(QtGui.QPixmap('red_play.png')))
+            self.stem_play[i].setIcon(
+                QtGui.QIcon(QtGui.QPixmap('play.png')))
 
             # combo box for inst group #
             self.stem_group.append(QtGui.QComboBox())
@@ -511,11 +527,13 @@ class Stems(QtGui.QDialog):
         self.show()
 
     def center(self):
-        frameGm = self.frameGeometry()
-        screen = QtGui.QApplication.desktop().screenNumber(QtGui.QApplication.desktop().cursor().pos())
-        centerPoint = QtGui.QApplication.desktop().screenGeometry(screen).center()
-        frameGm.moveCenter(centerPoint)
-        self.move(frameGm.topLeft())
+        frame_gm = self.frameGeometry()
+        screen = QtGui.QApplication.desktop().screenNumber(
+            QtGui.QApplication.desktop().cursor().pos())
+        center_point = QtGui.QApplication.desktop().screenGeometry(
+            screen).center()
+        frame_gm.moveCenter(center_point)
+        self.move(frame_gm.topLeft())
 
     def getInstMap(self):
         f_handle = open(INST_TAXONOMY)
@@ -617,25 +635,30 @@ class Raw(QtGui.QDialog):
             # Name of Stem #
             self.raw_list.append(QtGui.QLabel())
             self.raw_list[i].setText(self.raw_names[i])
+
             # Play button #
-            self.raw_play.append(QtGui.QPushButton())          
+            self.raw_play.append(QtGui.QPushButton())
             play_function = lambda x: lambda: play_audio(self.raw_paths[x])
             self.raw_play[i].clicked.connect(play_function(i))
-            self.raw_play[i].setStyleSheet("background-color: #CD1400")
-            self.raw_play[i].setIcon(QtGui.QIcon(QtGui.QPixmap('red_play.png')))
+            self.raw_play[i].setIcon(
+                QtGui.QIcon(QtGui.QPixmap('play.png'))
+            )
 
             # combo box for stem #
             self.raw_stem.append(QtGui.QComboBox())
             self.raw_stem[i].addItem("")
             self.raw_stem[i].addItems(sorted(self.stem_names))
+
             # combo box for inst group #
             self.raw_group.append(QtGui.QComboBox())
             self.raw_group[i].addItem("")
             self.raw_group[i].addItems(sorted(self.inst_dict.keys()))
             self.raw_group[i].addItem("Main System")
+
             # combo box for instrument #
             self.raw_inst.append(QtGui.QComboBox())
             self.raw_inst[i].setEnabled(False)
+
             # connect group choice to insrument choices #
             self.raw_group[i].activated.connect(
                 partial(self.loadInstCombobox, grp_cb=self.raw_group[i],
@@ -666,15 +689,6 @@ class Raw(QtGui.QDialog):
         inst_header = QtGui.QLabel()
         inst_header.setText("Instrument")
         inst_header.setFont(font)
-
-        melody_header = QtGui.QLabel()
-        melody_header.setText("Melody?")
-        melody_header.setFont(font)
-
-        bass_header = QtGui.QLabel()
-        bass_header.setText("Bass?")
-        bass_header.setFont(font)
-
 
         self.submit = QtGui.QPushButton('Submit', self)
         self.submit.clicked.connect(self.checkSubmit)
@@ -729,11 +743,13 @@ class Raw(QtGui.QDialog):
         self.show()
 
     def center(self):
-        frameGm = self.frameGeometry()
-        screen = QtGui.QApplication.desktop().screenNumber(QtGui.QApplication.desktop().cursor().pos())
-        centerPoint = QtGui.QApplication.desktop().screenGeometry(screen).center()
-        frameGm.moveCenter(centerPoint)
-        self.move(frameGm.topLeft())
+        frame_gm = self.frameGeometry()
+        screen = QtGui.QApplication.desktop().screenNumber(
+            QtGui.QApplication.desktop().cursor().pos())
+        center_point = QtGui.QApplication.desktop().screenGeometry(
+            screen).center()
+        frame_gm.moveCenter(center_point)
+        self.move(frame_gm.topLeft())
 
     def getInstMap(self):
         f_handle = open(INST_TAXONOMY)
@@ -784,9 +800,7 @@ class Raw(QtGui.QDialog):
             raw_info[k]['path'] = self.raw_paths[i]
             raw_info[k]['inst'] = str(self.raw_inst[i].currentText())
             raw_info[k]['stem'] = str(self.raw_stem[i].currentText())
-        print(json.dumps(raw_info, sort_keys=False, indent=4))
         self.raw_info = raw_info
-
 
     def checkSubmit(self):
 
@@ -811,12 +825,14 @@ class Raw(QtGui.QDialog):
 
         if complete:
             self.recordResponses()
-        
-        file_status = check_multitrack(self.raw_paths, self.stem_paths, self.mix_path, self.raw_info)
+
+        file_status = check_multitrack(
+            self.raw_paths, self.stem_paths, self.mix_path, self.raw_info
+        )
         problems = create_problems(file_status)
 
         if len(problems) > 0:
-            invalid_dialog = InvalidFiles(problems) 
+            invalid_dialog = InvalidFiles(problems, self)
             if not invalid_dialog.exec_():
                 sys.exit(-1)
         else:
@@ -833,6 +849,7 @@ class MelRank(QtGui.QDialog):
         print self.n_stems
         print 'mel stems'
         print self.mel_stems
+        self.ranking = []
 
         self.initUI()
 
@@ -855,16 +872,18 @@ class MelRank(QtGui.QDialog):
 
         self.rows = [QtGui.QButtonGroup(self.scroll_area_widget_contents)
                      for i in range(self.n_stems)]
-        buttons = [[QtGui.QRadioButton("%s" % (i+1)) for i in range(self.n_stems)]
-                   for j in range(self.n_stems)]
+        buttons = [
+            [QtGui.QRadioButton("%s" % (i + 1)) for i in range(self.n_stems)]
+            for j in range(self.n_stems)
+        ]
         stem_labels = []
         for i, item in enumerate(buttons):
             stem_labels.append(QtGui.QLabel())
             stem_labels[i].setText(self.mel_stems[i])
-            form.addWidget(stem_labels[i], i+1, 0)
+            form.addWidget(stem_labels[i], i + 1, 0)
             for j, button in enumerate(item):
                 self.rows[i].addButton(button)
-                form.addWidget(button, i+1, j+1)
+                form.addWidget(button, i + 1, j + 1)
                 if j == 0:
                     button.setChecked(True)
 
@@ -883,15 +902,20 @@ class MelRank(QtGui.QDialog):
         self.show()
 
     def center(self):
-        frameGm = self.frameGeometry()
-        screen = QtGui.QApplication.desktop().screenNumber(QtGui.QApplication.desktop().cursor().pos())
-        centerPoint = QtGui.QApplication.desktop().screenGeometry(screen).center()
-        frameGm.moveCenter(centerPoint)
-        self.move(frameGm.topLeft())
+        frame_gm = self.frameGeometry()
+        screen = QtGui.QApplication.desktop().screenNumber(
+            QtGui.QApplication.desktop().cursor().pos()
+        )
+        center_point = QtGui.QApplication.desktop().screenGeometry(
+            screen).center()
+        frame_gm.moveCenter(center_point)
+        self.move(frame_gm.topLeft())
 
     def checkSubmit(self):
-        self.ranking = [[self.mel_stems[i], self.rows[i].checkedButton().text()]
-                        for i in range(self.n_stems)]
+        self.ranking = [
+            [self.mel_stems[i], self.rows[i].checkedButton().text()]
+            for i in range(self.n_stems)
+        ]
         ranks = [val[1] for val in self.ranking]
         complete = True
         if len(set(ranks)) < len(ranks):
@@ -926,16 +950,19 @@ class NotAllStems(QtGui.QDialog):
         self.show()
 
     def center(self):
-        frameGm = self.frameGeometry()
-        screen = QtGui.QApplication.desktop().screenNumber(QtGui.QApplication.desktop().cursor().pos())
-        centerPoint = QtGui.QApplication.desktop().screenGeometry(screen).center()
-        frameGm.moveCenter(centerPoint)
-        self.move(frameGm.topLeft())
+        frame_gm = self.frameGeometry()
+        screen = QtGui.QApplication.desktop().screenNumber(
+            QtGui.QApplication.desktop().cursor().pos())
+        center_point = QtGui.QApplication.desktop().screenGeometry(
+            screen).center()
+        frame_gm.moveCenter(center_point)
+        self.move(frame_gm.topLeft())
 
 
 def play_audio(file_path):
     print file_path
     tfm = sox.Transformer(file_path, 'tmp.wav')
+    tfm.norm(db_level=0.0)
     tfm.silence()
     tfm.trim(0, 5)
     tfm.fade(fade_in_len=0.5, fade_out_len=0.5)
@@ -945,13 +972,11 @@ def play_audio(file_path):
 def play_mix(file_path):
     print file_path
     tfm = sox.Transformer(file_path, 'tmp.wav')
+    tfm.norm(db_level=0.0)
     tfm.silence()
     tfm.trim(0, 10)
     tfm.fade(fade_in_len=0.5, fade_out_len=0.5)
     tfm.preview()
-
-
-
 
 
 def process_data(save_path, metadata, mix_path, stem_info, raw_info, ranking):
@@ -1003,7 +1028,6 @@ def main():
     if not st.exec_():
         sys.exit(-1)
 
-
     if st.n_stems > 0:
         mr = MelRank(st.stem_info)
         ranking = mr.ranking
@@ -1012,11 +1036,10 @@ def main():
     else:
         ranking = []
 
-    print file_prompt.raw_path
-    print file_prompt.stem_path
-    print file_prompt.mix_path
-
-    rw = Raw(file_prompt.raw_path, st.stem_info, file_prompt.stem_path, file_prompt.mix_path)
+    rw = Raw(
+        file_prompt.raw_path, st.stem_info, 
+        file_prompt.stem_path, file_prompt.mix_path
+    )
     if not rw.exec_():
         sys.exit(-1)
 
