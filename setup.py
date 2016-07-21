@@ -8,16 +8,23 @@ Usage:
 from setuptools import setup
 import py2app
 
+
 APP = ['new_multitrack.py']
-DATA_FILES = ['taxonomy.yaml', 'medley-icon.png']
+DATA_FILES = ['new_multitrack/taxonomy.yaml', 'new_multitrack/homer.icns']
 OPTIONS = {'argv_emulation': True,
-	'iconfile': 'homer.icns',
+    'iconfile': 'homer.icns',
 	'includes': ['glob', 'PyQt4', 'sys', 'os', 'yaml', 'functools', 'medleydb',
 				 'copy', 're', 'struct','wave']}
 
 setup(
+    name = "new_multitrack",
+    description = "app for processing multitracks in medleydb format",
+    url = "https://github.com/marl/medleydb_app",
+	packages = ['new_multitrack'],
+	package_data = {'new_multitrack': DATA_FILES},
     app=APP,
     data_files=DATA_FILES,
     options={'py2app': OPTIONS},
     setup_requires=['py2app'],
+    install_requires =['pyyaml', 'sox', 'numpy']
 )
