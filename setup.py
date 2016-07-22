@@ -9,8 +9,8 @@ from setuptools import setup
 import py2app
 
 
-APP = ['new_multitrack.py']
-DATA_FILES = ['new_multitrack/taxonomy.yaml', 'new_multitrack/homer.icns']
+APP = ['new_multitrack/new_multitrack.py']
+DATA_FILES = ['new_multitrack/taxonomy.yaml', 'homer.icns']
 OPTIONS = {'argv_emulation': True,
     'iconfile': 'homer.icns',
 	'includes': ['glob', 'PyQt4', 'sys', 'os', 'yaml', 'functools', 'medleydb',

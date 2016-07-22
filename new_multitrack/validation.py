@@ -190,7 +190,7 @@ def check_multitrack(raw_files, stem_files, mix_path, raw_info):
     file_status = fill_file_status(file_status, raw_inclusion_status, 'Raws_In_Stems')
 
     raw_inclusion_status, stem_inclusion_status = is_included(stem_files, raw_files, stem_path, mix_path, raw_info)
-    file_status = fill_file_status(file_status, stem_inclusion_status, 'Stems in Mix')
+    file_status = fill_file_status(file_status, stem_inclusion_status, 'Stems_In_Mix')
 
     return file_status
 

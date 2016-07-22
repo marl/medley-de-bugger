@@ -28,13 +28,13 @@ class FilePrompt(QtGui.QDialog):
         self.mix_path = ""
         self.mix_choice = QtGui.QLabel()
 
-        self.stem_btn = QtGui.QPushButton('Select the Stems...', self)
+        self.stem_btn = QtGui.QPushButton('Select the Stem Folder...', self)
         self.stem_btn.clicked.connect(self.findStems)
 
         self.stem_path = ""
         self.stem_choice = QtGui.QLabel()
 
-        self.raw_btn = QtGui.QPushButton('Select the Raw Audio...', self)
+        self.raw_btn = QtGui.QPushButton('Select the Raw Folder...', self)
         self.raw_btn.clicked.connect(self.findRaw)
 
         self.raw_path = ""
@@ -121,7 +121,7 @@ class FilePrompt(QtGui.QDialog):
             problems = create_problems(file_status)
 
             if len(problems) > 0:
-                invalid_dialog = InvalidFiles(problems, self)
+                invalid_dialog = InvalidFormatCheck(problems, self, file_status, self.stem_path, self.raw_path)
                 if not invalid_dialog.exec_():
                     sys.exit(-1)
 
@@ -132,6 +132,96 @@ class FilePrompt(QtGui.QDialog):
 
         if self.raw_path and self.stem_path and self.mix_path:
             self.next_btn.setEnabled(True)
+
+
+# instead of ignore and continue add button to delete accidental silent files
+class InvalidFormatCheck(QtGui.QDialog):
+    def __init__(self, problems, raw_dialog, file_status, stem_path, raw_path):
+        super(InvalidFormatCheck, self).__init__()
+        self.problems = problems
+        self.initUI()
+        self.raw_dialog = raw_dialog
+        self.stem_path = stem_path
+        self.raw_path = raw_path
+        self.file_status = file_status
+
+    def initUI(self):
+
+
+        self.vertical_layout = QtGui.QVBoxLayout(self)
+
+        self.scroll_area = QtGui.QScrollArea(self)
+        self.scroll_area.setWidgetResizable(True)
+
+        self.scroll_area_widget_contents = QtGui.QWidget()
+        self.scroll_area_widget_contents.setGeometry(
+            QtCore.QRect(0, 0, 380, 280))
+
+        self.horizontallayout = QtGui.QHBoxLayout(
+            self.scroll_area_widget_contents)
+
+        self.grid_layout = QtGui.QGridLayout()
+
+        self.horizontallayout.addLayout(self.grid_layout)
+
+        self.scroll_area.setWidget(self.scroll_area_widget_contents)
+
+        self.text_lines = []
+
+        n_problems = len(self.problems)
+
+        for i in range(n_problems):
+            self.text_lines.append(QtGui.QLabel(self.problems[i]))
+            self.text_lines[i].setText(self.problems[i])
+            self.grid_layout.addWidget(self.text_lines[i])
+
+        self.vertical_layout.addWidget(self.scroll_area)
+
+        quit_btn = QtGui.QPushButton("Quit")
+        quit_btn.clicked.connect(self.quit_clicked)
+
+        back_btn = QtGui.QPushButton("Back")
+        back_btn.clicked.connect(self.accept)
+
+        remove_silent_btn = QtGui.QPushButton("Remove Silent Files")
+        remove_silent_btn.clicked.connect(self.remove_silent_files)
+
+        #this works for fileprompt->stem_info
+        #works for 'not all stems have raw'
+        #does not work for raw info -> meta
+
+        self.grid_layout.addWidget(back_btn, n_problems, 0)
+        self.grid_layout.addWidget(remove_silent_btn, n_problems, 1)
+        self.grid_layout.addWidget(quit_btn, n_problems, 2)
+
+        self.setGeometry(900, 400, 900, 400)
+        self.setWindowTitle('Invalid Files')
+        self.setWindowIcon(QtGui.QIcon('ICON_FILE'))
+        self.center()
+
+        self.show()
+
+    def remove_silent_files(self):
+        stem_files = glob.glob(os.path.join(self.stem_path, '*.wav'))
+        raw_files = glob.glob(os.path.join(self.raw_path, '*.wav'))
+
+        for f_path in (stem_files + raw_files):
+            basename = os.path.basename(f_path)
+            if not self.file_status[basename]['Silent']:
+                os.remove(f_path)
+        self.accept()
+
+    def center(self):
+        frame_gm = self.frameGeometry()
+        screen = QtGui.QApplication.desktop().screenNumber(
+            QtGui.QApplication.desktop().cursor().pos())
+        center_point = QtGui.QApplication.desktop().screenGeometry(
+            screen).center()
+        frame_gm.moveCenter(center_point)
+        self.move(frame_gm.topLeft())
+
+    def quit_clicked(self):
+        QtCore.QCoreApplication.instance().quit()
 
 
 class InvalidFiles(QtGui.QDialog):
