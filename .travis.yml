@@ -12,6 +12,7 @@ addons:
     packages:
     - sox
     - numpy
+    - py2app
 
 # command to install dependencies
 install:
