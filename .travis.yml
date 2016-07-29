@@ -18,6 +18,7 @@ install:
   - pip install numpy
   - pip install pyyaml
   - pip install sox
+  - python setup.py install 
 
 # command to run tests
 script: nosetests --with-coverage --cover-erase --cover-package=medley-de-bugger -v -w tests/
