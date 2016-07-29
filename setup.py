@@ -6,7 +6,6 @@ Usage:
 """
 
 from setuptools import setup
-import py2app
 
 
 APP = ['new_multitrack/new_multitrack.py']
