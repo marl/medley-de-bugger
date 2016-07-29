@@ -11,13 +11,11 @@ addons:
   apt:
     packages:
     - sox
-    - numpy
-    - py2app
 
 # command to install dependencies
 install:
   - pip install coveralls
-  - pip install -e .
+  - pip install -e ./
 
 # command to run tests
 script: nosetests --with-coverage --cover-erase --cover-package=medley-de-bugger -v -w tests/
