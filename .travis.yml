@@ -1,0 +1,29 @@
+sudo: false
+
+language: python
+
+python:
+  - "2.7"
+  - "3.4"
+  - "3.5"
+
+addons:
+  apt:
+    packages:
+    - sox
+    - numpy
+
+# command to install dependencies
+install:
+  - pip install coveralls
+  - pip install -e .
+
+# command to run tests
+script: nosetests --with-coverage --cover-erase --cover-package=medley-de-bugger -v -w tests/
+
+after_success:
+    - coveralls
+    - pip uninstall -y medley-de-bugger
+
+after_failure:
+    - pip uninstall -y medley-de-bugger
