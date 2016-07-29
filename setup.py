@@ -25,5 +25,5 @@ setup(
     data_files=DATA_FILES,
     options={'py2app': OPTIONS},
     setup_requires=['py2app'],
-    install_requires =['pyyaml', 'sox', 'numpy']
+    #install_requires =['pyyaml', 'sox', 'numpy']
 )
