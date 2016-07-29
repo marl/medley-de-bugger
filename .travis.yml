@@ -21,7 +21,6 @@ install:
   - pip install numpy
   - pip install pyyaml
   - pip install sox
-  - pip install pyqt4
   - python setup.py install 
 
 # command to run tests
