@@ -13,6 +13,16 @@ addons:
     - sox
     - qt4-dev-tools
     - python-qt4
+    - libqt4-declarative-folderlistmodel
+    - libqt4-declarative-gestures
+    - libqt4-declarative-particles 
+    - libqt4-declarative-shaders
+    - qt4-qmlviewer
+    - qt4-doc unixodbc-dev
+    - qt4-qtconfig
+    - libsox-fmt-all 
+    - python-qt4-dbg 
+    - qt4-doc-html
 
 
 # command to install dependencies
