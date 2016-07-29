@@ -15,7 +15,9 @@ addons:
 # command to install dependencies
 install:
   - pip install coveralls
-  - pip install -e ./
+  - pip install numpy
+  - pip install pyyaml
+  - pip install sox
 
 # command to run tests
 script: nosetests --with-coverage --cover-erase --cover-package=medley-de-bugger -v -w tests/
