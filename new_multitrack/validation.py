@@ -19,7 +19,7 @@ PROBLEMS = {
     'Wrong_Stats': 'File format is incorrect. All files must be 44.1k and 16bit. Mix and stem files should be stereo, raw files should be mono.', 
     'Length_As_Mix': 'File is not correct length.', 
     'Raws_In_Stems': 'This raw file was not found in its corresponding stem.', 
-    'Stems_In_Mix': 'Mix is mixing corresponding stem files.', 
+    'Stems_In_Mix': 'Mix is missing corresponding stem files.', 
     'Raw_Sum_Alignment': 'Raw files are not aligned with the mix.',  
     'Stem_Sum_Alignment': 'Stem files are not aligned with the mix.', 
     'Raw_to_Stem_Alignment': 'The raw files associated with this stem file are not correctly aligned.',
