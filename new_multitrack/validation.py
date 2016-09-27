@@ -542,18 +542,21 @@ def alignment_helper(file_list, target_path):
     output_path = output_handle.name
 
     if len(file_list) > 1: 
-        file_sum = sox.Combiner(file_list, output_path, 'mix') 
+        file_sum = sox.Combiner()
+        file_sum.build(
+            file_list, output_path, 'mix'
+        ) 
     else:
-        file_sum = sox.Transformer(file_list[0], output_path)
+        file_sum = sox.Transformer()
+        file_sum.build(file_list[0], output_path)
 
     file_sum.rate(sr,'m')
-    file_sum.build()
 
     target_handle = tempfile.NamedTemporaryFile(suffix='.wav')
     target_handle_path = target_handle.name
-    target_sum = sox.Transformer(target_path, target_handle_path)
+    target_sum = sox.Transformer()
+    target_sum.build(target_path, target_handle_path)
     target_sum.rate(sr, 'm')
-    target_sum.build()
 
     dur = get_length(target_path)
     offset = (dur/44100.0) / 2.0
