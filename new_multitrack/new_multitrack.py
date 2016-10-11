@@ -1050,22 +1050,22 @@ class NotAllStems(QtGui.QDialog):
 
 def play_audio(file_path):
     print file_path
-    tfm = sox.Transformer(file_path, 'tmp.wav')
+    tfm = sox.Transformer()
     tfm.norm(db_level=0.0)
     tfm.silence()
     tfm.trim(0, 5)
     tfm.fade(fade_in_len=0.5, fade_out_len=0.5)
-    tfm.preview()
+    tfm.preview(file_path)
 
 
 def play_mix(file_path):
     print file_path
-    tfm = sox.Transformer(file_path, 'tmp.wav')
+    tfm = sox.Transformer()
     tfm.norm(db_level=0.0)
     tfm.silence()
     tfm.trim(0, 10)
     tfm.fade(fade_in_len=0.5, fade_out_len=0.5)
-    tfm.preview()
+    tfm.preview(file_path)
 
 
 def process_data(save_path, metadata, mix_path, stem_info, raw_info, ranking):
