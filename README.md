@@ -1,6 +1,8 @@
 # medley-de-bugger
 
-Hello! MedleyDeBugger is an app to process your multitracks for error before you upload them to our awesome database (see more at https://github.com/marl/medleydb). 
+Hello! MedleyDeBugger is an app that processes your multitracks for error before they are uploaded to our awesome database!
+
+(see more at https://github.com/marl/medleydb)
 
 To use this app:
 
