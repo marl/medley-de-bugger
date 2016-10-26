@@ -36,8 +36,7 @@ Installation (via Homebrew)
 
 Usage
 -----
-`# launch the application`
-`python new_multitrack/new_multitrack.py` 
+`python new_multitrack/new_multitrack.py  # launch the application` 
 
 - Follow the prompts to select your audio and run it through the app.
 - After you're done, a new folder will be generated with a multitrack in MedleyDB format.
