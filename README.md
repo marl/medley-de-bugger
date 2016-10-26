@@ -1,6 +1,6 @@
 # medley-de-bugger
 
-Hello! MedleyDeBugger is an GUI application that processes and error-checks multitracks before they are uploaded to the MedleyDB database.
+Hello! MedleyDeBugger is an application that processes and error-checks multitracks before they are uploaded to the MedleyDB database.
 
 *Maintained by:*
 
