@@ -12,18 +12,17 @@ APP = ['new_multitrack/new_multitrack.py']
 DATA_FILES = ['new_multitrack/taxonomy.yaml', 'homer.icns']
 OPTIONS = {'argv_emulation': True,
     'iconfile': 'homer.icns',
-	'includes': ['glob', 'PyQt4', 'sys', 'os', 'yaml', 'functools', 'medleydb',
-				 'copy', 're', 'struct','wave']}
+	'includes': ['PyQt4', 'medleydb', 're']}
 
 setup(
-    name = "new_multitrack",
-    description = "app for processing multitracks in medleydb format",
-    url = "https://github.com/marl/medleydb_app",
-	packages = ['new_multitrack'],
-	package_data = {'new_multitrack': DATA_FILES},
+    name="new_multitrack",
+    description="app for processing multitracks in medleydb format",
+    url="https://github.com/marl/medleydb_app",
+    packages=['new_multitrack'],
+    package_data={'new_multitrack': DATA_FILES},
     app=APP,
     data_files=DATA_FILES,
     options={'py2app': OPTIONS},
     setup_requires=['py2app'],
-    install_requires =['pyyaml', 'sox', 'numpy']
+    install_requires=['pyyaml', 'sox', 'numpy']
 )
